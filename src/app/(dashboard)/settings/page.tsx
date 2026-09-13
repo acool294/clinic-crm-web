@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -50,17 +51,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type StaffRole = "Doctor" | "Receptionist" | "Nurse" | "Admin";
-type StaffStatus = "Active" | "Inactive";
-
-interface StaffMember {
-  id: string;
-  name: string;
-  email: string;
-  role: StaffRole;
-  status: StaffStatus;
-}
+import { fetchStaff, type StaffRow } from "@/lib/db/staff";
 
 interface ClinicProfile {
   name: string;
@@ -75,37 +66,6 @@ const initialClinicProfile: ClinicProfile = {
   phone: "+91 22 2345 6789",
   email: "admin@cityhealthclinic.com",
 };
-
-const initialStaffList: StaffMember[] = [
-  {
-    id: "staff-1",
-    name: "Dr. Rajesh Smith",
-    email: "rajesh@clinic.com",
-    role: "Doctor",
-    status: "Active",
-  },
-  {
-    id: "staff-2",
-    name: "Dr. Anita Patel",
-    email: "anita@clinic.com",
-    role: "Doctor",
-    status: "Active",
-  },
-  {
-    id: "staff-3",
-    name: "Meera Kapoor",
-    email: "meera@clinic.com",
-    role: "Receptionist",
-    status: "Active",
-  },
-  {
-    id: "staff-4",
-    name: "Vikram Singh",
-    email: "vikram@clinic.com",
-    role: "Nurse",
-    status: "Active",
-  },
-];
 
 function getInitials(name: string): string {
   const parts = name.replace(/^Dr\.\s+/i, "").trim().split(/\s+/);
@@ -122,25 +82,48 @@ export default function SettingsPage() {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   // Tab 2: Staff Management State
-  const [staffList, setStaffList] = useState<StaffMember[]>(initialStaffList);
+  const [staff, setStaff] = useState<StaffRow[]>([]);
+  const [staffLoading, setStaffLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Dialog States
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStaff() {
+      try {
+        setStaffLoading(true);
+        const data = await fetchStaff();
+        if (isMounted) {
+          setStaff(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch staff:", err);
+      } finally {
+        if (isMounted) {
+          setStaffLoading(false);
+        }
+      }
+    }
+    loadStaff();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Dialog States (UI-only for now — real staff creation needs service role)
+  // TODO: Connect to /api/admin/create-staff when service role key is added
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffEmail, setNewStaffEmail] = useState("");
-  const [newStaffRole, setNewStaffRole] = useState<StaffRole>("Doctor");
-  const [newStaffStatus, setNewStaffStatus] = useState<StaffStatus>("Active");
+  const [newStaffRole, setNewStaffRole] = useState<StaffRow["role"]>("doctor");
   const [addStaffError, setAddStaffError] = useState<string | null>(null);
 
-  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [editingStaff, setEditingStaff] = useState<StaffRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editRole, setEditRole] = useState<StaffRole>("Doctor");
-  const [editStatus, setEditStatus] = useState<StaffStatus>("Active");
+  const [editRole, setEditRole] = useState<StaffRow["role"]>("doctor");
   const [editStaffError, setEditStaffError] = useState<string | null>(null);
 
-  const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  const [staffToDelete, setStaffToDelete] = useState<StaffRow | null>(null);
 
   // Handle Save Profile
   function handleSaveProfile(e: React.FormEvent<HTMLFormElement>) {
@@ -158,15 +141,16 @@ export default function SettingsPage() {
   }
 
   // Handle Add Staff
+  // TODO: Connect to /api/admin/create-staff when service role key is added
   function handleOpenAddStaff() {
     setNewStaffName("");
     setNewStaffEmail("");
-    setNewStaffRole("Doctor");
-    setNewStaffStatus("Active");
+    setNewStaffRole("doctor");
     setAddStaffError(null);
     setIsAddStaffOpen(true);
   }
 
+  // TODO: Connect to /api/admin/create-staff when service role key is added
   function handleSaveNewStaff(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!newStaffName.trim()) {
@@ -178,28 +162,31 @@ export default function SettingsPage() {
       return;
     }
 
-    const newMember: StaffMember = {
+    const newMember: StaffRow = {
       id: `staff-${Date.now()}`,
+      clinic_id: "",
       name: newStaffName.trim(),
       email: newStaffEmail.trim().toLowerCase(),
       role: newStaffRole,
-      status: newStaffStatus,
+      specialization: null,
+      created_at: new Date().toISOString(),
     };
 
-    setStaffList((prev) => [newMember, ...prev]);
+    setStaff((prev) => [newMember, ...prev]);
     setIsAddStaffOpen(false);
   }
 
   // Handle Edit Staff
-  function handleOpenEditStaff(member: StaffMember) {
+  // TODO: Connect to /api/admin/create-staff when service role key is added
+  function handleOpenEditStaff(member: StaffRow) {
     setEditingStaff(member);
     setEditName(member.name);
-    setEditEmail(member.email);
+    setEditEmail(member.email ?? "");
     setEditRole(member.role);
-    setEditStatus(member.status);
     setEditStaffError(null);
   }
 
+  // TODO: Connect to /api/admin/create-staff when service role key is added
   function handleSaveEditedStaff(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!editingStaff) return;
@@ -208,20 +195,19 @@ export default function SettingsPage() {
       setEditStaffError("Staff member name is required.");
       return;
     }
-    if (!editEmail.trim() || !editEmail.includes("@")) {
+    if (editEmail.trim() && !editEmail.includes("@")) {
       setEditStaffError("A valid email address is required.");
       return;
     }
 
-    setStaffList((prev) =>
+    setStaff((prev) =>
       prev.map((item) =>
         item.id === editingStaff.id
           ? {
               ...item,
               name: editName.trim(),
-              email: editEmail.trim().toLowerCase(),
+              email: editEmail.trim().toLowerCase() || null,
               role: editRole,
-              status: editStatus,
             }
           : item
       )
@@ -230,24 +216,26 @@ export default function SettingsPage() {
   }
 
   // Handle Remove Staff
+  // TODO: Connect to /api/admin/create-staff when service role key is added
   function handleConfirmDelete() {
     if (!staffToDelete) return;
-    setStaffList((prev) => prev.filter((item) => item.id !== staffToDelete.id));
+    setStaff((prev) => prev.filter((item) => item.id !== staffToDelete.id));
     setStaffToDelete(null);
   }
 
   // Filter staff by search query
-  const filteredStaff = staffList.filter(
+  const filteredStaff = staff.filter(
     (member) =>
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
       member.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Role Badge Helper
-  function renderRoleBadge(role: StaffRole) {
-    switch (role) {
-      case "Doctor":
+  function renderRoleBadge(role: string) {
+    const normalized = role.toLowerCase();
+    switch (normalized) {
+      case "doctor":
         return (
           <Badge
             variant="outline"
@@ -256,7 +244,7 @@ export default function SettingsPage() {
             Doctor
           </Badge>
         );
-      case "Receptionist":
+      case "receptionist":
         return (
           <Badge
             variant="outline"
@@ -265,7 +253,7 @@ export default function SettingsPage() {
             Receptionist
           </Badge>
         );
-      case "Nurse":
+      case "nurse":
         return (
           <Badge
             variant="outline"
@@ -274,7 +262,7 @@ export default function SettingsPage() {
             Nurse
           </Badge>
         );
-      case "Admin":
+      case "admin":
         return (
           <Badge
             variant="outline"
@@ -283,8 +271,12 @@ export default function SettingsPage() {
             Admin
           </Badge>
         );
-      default:
-        return <Badge variant="outline">{role}</Badge>;
+      default: {
+        const capitalized = role
+          ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+          : "";
+        return <Badge variant="outline">{capitalized}</Badge>;
+      }
     }
   }
 
@@ -319,7 +311,7 @@ export default function SettingsPage() {
             <Users className="size-4" />
             <span>Staff Management</span>
             <span className="ml-1 rounded-full bg-slate-200 px-1.5 py-0.2 text-[11px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-              {staffList.length}
+              {staffLoading ? "..." : staff.length}
             </span>
           </TabsTrigger>
         </TabsList>
@@ -564,9 +556,9 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Showing</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {filteredStaff.length}
+                  {staffLoading ? "..." : filteredStaff.length}
                 </span>
-                <span>of {staffList.length} members</span>
+                <span>of {staffLoading ? "..." : staff.length} members</span>
               </div>
             </div>
 
@@ -593,7 +585,38 @@ export default function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStaff.length === 0 ? (
+                  {staffLoading ? (
+                    <>
+                      {[1, 2, 3].map((index) => (
+                        <TableRow key={`skeleton-staff-${index}`}>
+                          <TableCell className="py-4">
+                            <div className="flex items-center gap-3">
+                              <Skeleton className="size-8 rounded-full" />
+                              <div className="space-y-1.5">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-20" />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <Skeleton className="h-4 w-40" />
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <Skeleton className="h-5 w-20 rounded-full" />
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <Skeleton className="h-5 w-16 rounded-full" />
+                          </TableCell>
+                          <TableCell className="py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Skeleton className="h-8 w-14 rounded-md" />
+                              <Skeleton className="h-8 w-16 rounded-md" />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  ) : filteredStaff.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={5}
@@ -603,9 +626,9 @@ export default function SettingsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStaff.map((member) => (
+                    filteredStaff.map((s) => (
                       <TableRow
-                        key={member.id}
+                        key={s.id}
                         className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/50"
                       >
                         {/* Name */}
@@ -613,15 +636,15 @@ export default function SettingsPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="size-8 border border-slate-200 bg-blue-50 dark:border-slate-700 dark:bg-blue-950">
                               <AvatarFallback className="bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-                                {getInitials(member.name)}
+                                {getInitials(s.name)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
                               <p className="font-semibold leading-tight text-slate-900 dark:text-slate-100">
-                                {member.name}
+                                {s.name}
                               </p>
                               <p className="text-[11px] text-muted-foreground">
-                                ID: {member.id}
+                                {s.specialization ? s.specialization : `ID: ${s.id.slice(0, 8)}`}
                               </p>
                             </div>
                           </div>
@@ -631,33 +654,21 @@ export default function SettingsPage() {
                         <TableCell className="text-slate-600 dark:text-slate-400">
                           <div className="flex items-center gap-1.5 text-xs">
                             <Mail className="size-3.5 text-slate-400" />
-                            <span>{member.email}</span>
+                            <span>{s.email ?? "Not set"}</span>
                           </div>
                         </TableCell>
 
                         {/* Role (Badge) */}
-                        <TableCell>{renderRoleBadge(member.role)}</TableCell>
+                        <TableCell>{renderRoleBadge(s.role)}</TableCell>
 
                         {/* Status */}
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={cn(
-                              "gap-1.5 font-medium",
-                              member.status === "Active"
-                                ? "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-                            )}
+                            className="gap-1.5 font-medium border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
                           >
-                            <span
-                              className={cn(
-                                "size-1.5 rounded-full",
-                                member.status === "Active"
-                                  ? "bg-emerald-500"
-                                  : "bg-slate-400"
-                              )}
-                            />
-                            {member.status}
+                            <span className="size-1.5 rounded-full bg-emerald-500" />
+                            Active
                           </Badge>
                         </TableCell>
 
@@ -668,7 +679,7 @@ export default function SettingsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleOpenEditStaff(member)}
+                              onClick={() => handleOpenEditStaff(s)}
                               className="h-8 gap-1.5 border-slate-200 px-2.5 text-xs text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                             >
                               <Pencil className="size-3.5" />
@@ -679,7 +690,7 @@ export default function SettingsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setStaffToDelete(member)}
+                              onClick={() => setStaffToDelete(s)}
                               className="h-8 gap-1.5 border-red-200 px-2.5 text-xs text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                             >
                               <Trash2 className="size-3.5" />
@@ -757,46 +768,24 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="add-role"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    Role
-                  </label>
-                  <select
-                    id="add-role"
-                    value={newStaffRole}
-                    onChange={(e) => setNewStaffRole(e.target.value as StaffRole)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
-                  >
-                    <option value="Doctor">Doctor</option>
-                    <option value="Receptionist">Receptionist</option>
-                    <option value="Nurse">Nurse</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="add-status"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    Status
-                  </label>
-                  <select
-                    id="add-status"
-                    value={newStaffStatus}
-                    onChange={(e) =>
-                      setNewStaffStatus(e.target.value as StaffStatus)
-                    }
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="add-role"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Role
+                </label>
+                <select
+                  id="add-role"
+                  value={newStaffRole}
+                  onChange={(e) => setNewStaffRole(e.target.value as StaffRow["role"])}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
+                >
+                  <option value="doctor">Doctor</option>
+                  <option value="receptionist">Receptionist</option>
+                  <option value="nurse">Nurse</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
             </div>
 
@@ -883,46 +872,24 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="edit-role"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    Role
-                  </label>
-                  <select
-                    id="edit-role"
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value as StaffRole)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
-                  >
-                    <option value="Doctor">Doctor</option>
-                    <option value="Receptionist">Receptionist</option>
-                    <option value="Nurse">Nurse</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="edit-status"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    Status
-                  </label>
-                  <select
-                    id="edit-status"
-                    value={editStatus}
-                    onChange={(e) =>
-                      setEditStatus(e.target.value as StaffStatus)
-                    }
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="edit-role"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Role
+                </label>
+                <select
+                  id="edit-role"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as StaffRow["role"])}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 dark:bg-slate-900"
+                >
+                  <option value="doctor">Doctor</option>
+                  <option value="receptionist">Receptionist</option>
+                  <option value="nurse">Nurse</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
             </div>
 
@@ -966,7 +933,7 @@ export default function SettingsPage() {
               <strong className="text-slate-900 dark:text-slate-100">
                 {staffToDelete?.name}
               </strong>{" "}
-              ({staffToDelete?.email})? This action cannot be undone.
+              ({staffToDelete?.email ?? "Not set"})? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

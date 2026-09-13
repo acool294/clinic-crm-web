@@ -49,7 +49,13 @@ import {
   Stethoscope,
   AlertCircle,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
+import {
+  fetchAppointments,
+  updateAppointmentStatus,
+  type AppointmentWithDetails,
+} from "@/lib/db/appointments";
 import {
   format,
   startOfWeek,
@@ -226,291 +232,16 @@ function renderStatusBadge(status: AppointmentStatus) {
   }
 }
 
-function getInitialAppointments(): Appointment[] {
-  const today = new Date();
-  const todayStr = format(today, "yyyy-MM-dd");
-  const mon = startOfWeek(today, { weekStartsOn: 1 });
 
-  const dMon = format(mon, "yyyy-MM-dd");
-  const dTue = format(addDays(mon, 1), "yyyy-MM-dd");
-  const dWed = format(addDays(mon, 2), "yyyy-MM-dd");
-  const dThu = format(addDays(mon, 3), "yyyy-MM-dd");
-  const dFri = format(addDays(mon, 4), "yyyy-MM-dd");
-  const dSat = format(addDays(mon, 5), "yyyy-MM-dd");
-
-  const monthStart = startOfMonth(today);
-  const monthEnd = endOfMonth(today);
-  const mDay4 = format(addDays(monthStart, 3), "yyyy-MM-dd");
-  const mDay10 = format(addDays(monthStart, 9), "yyyy-MM-dd");
-  const mDay18 = format(addDays(monthStart, 17), "yyyy-MM-dd");
-  const mDay24 = format(addDays(monthStart, 23), "yyyy-MM-dd");
-  const mNearEnd = format(subDays(monthEnd, 2), "yyyy-MM-dd");
-
-  const list: Appointment[] = [
-    // 4 appointments for today
-    {
-      id: "apt-today-1",
-      patient: "Eleanor Vance",
-      date: todayStr,
-      time: "09:00",
-      duration: 45,
-      type: "Consultation",
-      doctor: "Dr. Smith",
-      status: "in_progress",
-    },
-    {
-      id: "apt-today-2",
-      patient: "Marcus Brody",
-      date: todayStr,
-      time: "10:30",
-      duration: 30,
-      type: "Follow-up",
-      doctor: "Dr. Smith",
-      status: "checked_in",
-    },
-    {
-      id: "apt-today-3",
-      patient: "Sarah Jenkins",
-      date: todayStr,
-      time: "13:30",
-      duration: 45,
-      type: "Lab Review",
-      doctor: "Dr. Patel",
-      status: "scheduled",
-    },
-    {
-      id: "apt-today-4",
-      patient: "David Alvarez",
-      date: todayStr,
-      time: "15:00",
-      duration: 60,
-      type: "Consultation",
-      doctor: "Dr. Adams",
-      status: "confirmed",
-    },
-  ];
-
-  // Week appointments on other days of the current week
-  if (dMon !== todayStr) {
-    list.push(
-      {
-        id: "apt-mon-1",
-        patient: "Amanda Hayes",
-        date: dMon,
-        time: "09:30",
-        duration: 30,
-        type: "Follow-up",
-        doctor: "Dr. Patel",
-        status: "confirmed",
-      },
-      {
-        id: "apt-mon-2",
-        patient: "Arthur Pendelton",
-        date: dMon,
-        time: "11:30",
-        duration: 45,
-        type: "Consultation",
-        doctor: "Dr. Smith",
-        status: "scheduled",
-      }
-    );
-  }
-
-  if (dTue !== todayStr) {
-    list.push(
-      {
-        id: "apt-tue-1",
-        patient: "Robert Chen",
-        date: dTue,
-        time: "10:00",
-        duration: 60,
-        type: "Consultation",
-        doctor: "Dr. Smith",
-        status: "scheduled",
-      },
-      {
-        id: "apt-tue-2",
-        patient: "Elena Rostova",
-        date: dTue,
-        time: "14:00",
-        duration: 30,
-        type: "Lab Review",
-        doctor: "Dr. Patel",
-        status: "confirmed",
-      }
-    );
-  }
-
-  if (dWed !== todayStr) {
-    list.push(
-      {
-        id: "apt-wed-1",
-        patient: "Priya Sharma",
-        date: dWed,
-        time: "09:00",
-        duration: 30,
-        type: "Lab Review",
-        doctor: "Dr. Patel",
-        status: "confirmed",
-      },
-      {
-        id: "apt-wed-2",
-        patient: "Lucas Meyer",
-        date: dWed,
-        time: "13:00",
-        duration: 45,
-        type: "Consultation",
-        doctor: "Dr. Adams",
-        status: "scheduled",
-      }
-    );
-  }
-
-  if (dThu !== todayStr) {
-    list.push(
-      {
-        id: "apt-thu-1",
-        patient: "James Wilson",
-        date: dThu,
-        time: "11:00",
-        duration: 60,
-        type: "Consultation",
-        doctor: "Dr. Smith",
-        status: "scheduled",
-      },
-      {
-        id: "apt-thu-2",
-        patient: "Sophia Taylor",
-        date: dThu,
-        time: "15:30",
-        duration: 30,
-        type: "Follow-up",
-        doctor: "Dr. Adams",
-        status: "confirmed",
-      }
-    );
-  }
-
-  if (dFri !== todayStr) {
-    list.push(
-      {
-        id: "apt-fri-1",
-        patient: "Clara Oswald",
-        date: dFri,
-        time: "10:00",
-        duration: 45,
-        type: "Follow-up",
-        doctor: "Dr. Patel",
-        status: "scheduled",
-      },
-      {
-        id: "apt-fri-2",
-        patient: "Nathan Drake",
-        date: dFri,
-        time: "14:30",
-        duration: 30,
-        type: "Lab Review",
-        doctor: "Dr. Adams",
-        status: "confirmed",
-      }
-    );
-  }
-
-  if (dSat !== todayStr) {
-    list.push({
-      id: "apt-sat-1",
-      patient: "Zoe Saldana",
-      date: dSat,
-      time: "09:30",
-      duration: 60,
-      type: "Consultation",
-      doctor: "Dr. Smith",
-      status: "scheduled",
-    });
-  }
-
-  // Month appointments on other dates
-  const otherDates = [mDay4, mDay10, mDay18, mDay24, mNearEnd].filter(
-    (d) => d !== todayStr && d !== dMon && d !== dTue && d !== dWed && d !== dThu && d !== dFri && d !== dSat
-  );
-
-  if (otherDates.length > 0) {
-    list.push(
-      {
-        id: "apt-m-1",
-        patient: "Benjamin Sisko",
-        date: otherDates[0],
-        time: "09:00",
-        duration: 45,
-        type: "Consultation",
-        doctor: "Dr. Smith",
-        status: "scheduled",
-      },
-      {
-        id: "apt-m-2",
-        patient: "Kira Nerys",
-        date: otherDates[0],
-        time: "11:00",
-        duration: 30,
-        type: "Follow-up",
-        doctor: "Dr. Patel",
-        status: "confirmed",
-      },
-      {
-        id: "apt-m-3",
-        patient: "Jadzia Dax",
-        date: otherDates[0],
-        time: "14:00",
-        duration: 30,
-        type: "Lab Review",
-        doctor: "Dr. Patel",
-        status: "scheduled",
-      }
-    );
-  }
-
-  if (otherDates.length > 1) {
-    list.push(
-      {
-        id: "apt-m-4",
-        patient: "Miles O'Brien",
-        date: otherDates[1],
-        time: "10:30",
-        duration: 60,
-        type: "Consultation",
-        doctor: "Dr. Adams",
-        status: "scheduled",
-      },
-      {
-        id: "apt-m-5",
-        patient: "Keiko O'Brien",
-        date: otherDates[1],
-        time: "13:30",
-        duration: 30,
-        type: "Follow-up",
-        doctor: "Dr. Smith",
-        status: "confirmed",
-      }
-    );
-  }
-
-  if (otherDates.length > 2) {
-    list.push({
-      id: "apt-m-6",
-      patient: "Julian Bashir",
-      date: otherDates[2],
-      time: "11:00",
-      duration: 45,
-      type: "Lab Review",
-      doctor: "Dr. Patel",
-      status: "scheduled",
-    });
-  }
-
-  return list;
+function mapDbStatus(s: string): AppointmentStatus {
+  const map: Record<string, AppointmentStatus> = {
+    scheduled: "scheduled",
+    completed: "completed",
+    cancelled: "cancelled",
+    no_show: "scheduled",
+  };
+  return map[s] ?? "scheduled";
 }
-
-const INITIAL_APPOINTMENTS: Appointment[] = getInitialAppointments();
 
 export default function CalendarPage() {
   const { staffProfile } = useAuth();
@@ -519,7 +250,34 @@ export default function CalendarPage() {
 
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [apptLoading, setApptLoading] = useState(true);
+
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  async function loadAppointments() {
+    try {
+      setApptLoading(true);
+      const rows = await fetchAppointments();
+      const mapped: Appointment[] = rows.map((r) => ({
+        id: r.id,
+        patient: r.patient_name,
+        date: r.scheduled_at.split("T")[0],
+        time: r.scheduled_at.split("T")[1]?.substring(0, 5) ?? "09:00",
+        duration: r.duration_minutes,
+        type: (r.appointment_type ?? "Consultation") as AppointmentType,
+        doctor: r.doctor_name,
+        status: mapDbStatus(r.status),
+      }));
+      setAppointments(mapped);
+    } catch {
+      // silently fail, show empty calendar
+    } finally {
+      setApptLoading(false);
+    }
+  }
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   // New Appointment Modal State
@@ -636,33 +394,35 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  const handleCheckIn = () => {
-    if (!selectedAppointment) return;
-    const updated = appointments.map((apt) =>
-      apt.id === selectedAppointment.id
-        ? { ...apt, status: "checked_in" as AppointmentStatus }
-        : apt
+  async function handleCheckIn(apptId?: string) {
+    const id = apptId ?? selectedAppointment?.id;
+    if (!id) return;
+    try {
+      await updateAppointmentStatus(id, "scheduled"); // 'checked_in' not in DB enum, map to scheduled
+    } catch (err) {
+      console.error("Failed to check in appointment", err);
+    }
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "checked_in" } : a))
     );
-    setAppointments(updated);
-    setSelectedAppointment({
-      ...selectedAppointment,
-      status: "checked_in",
-    });
-  };
+    setSelectedAppointment((prev) =>
+      prev && prev.id === id ? { ...prev, status: "checked_in" } : prev
+    );
+  }
 
-  const handleCancel = () => {
-    if (!selectedAppointment) return;
-    const updated = appointments.map((apt) =>
-      apt.id === selectedAppointment.id
-        ? { ...apt, status: "cancelled" as AppointmentStatus }
-        : apt
+  async function handleCancel(apptId?: string) {
+    const id = apptId ?? selectedAppointment?.id;
+    if (!id) return;
+    try {
+      await updateAppointmentStatus(id, "cancelled");
+    } catch (err) {
+      console.error("Failed to cancel appointment", err);
+    }
+    await loadAppointments();
+    setSelectedAppointment((prev) =>
+      prev && prev.id === id ? { ...prev, status: "cancelled" } : prev
     );
-    setAppointments(updated);
-    setSelectedAppointment({
-      ...selectedAppointment,
-      status: "cancelled",
-    });
-  };
+  }
 
   const openRescheduleModal = () => {
     if (!selectedAppointment) return;
@@ -846,8 +606,15 @@ export default function CalendarPage() {
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Calendar Area */}
         <div className="flex-1 min-w-0 w-full">
-          {/* WEEK VIEW (6 Columns: Mon-Sat) */}
-          {view === "week" && (
+          {apptLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[460px] rounded-xl border border-slate-200 bg-white p-12 shadow-xs">
+              <Loader2 className="size-8 animate-spin text-blue-600 mb-3" />
+              <p className="text-sm font-medium text-slate-600">Loading appointments...</p>
+            </div>
+          ) : (
+            <>
+              {/* WEEK VIEW (6 Columns: Mon-Sat) */}
+              {view === "week" && (
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="min-w-[840px]">
                 {/* Header Row: Time Column + 6 Day Columns (Mon-Sat) */}
@@ -1331,6 +1098,8 @@ export default function CalendarPage() {
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* 3. RIGHT DETAIL PANEL (Conditional, ~320px) */}
@@ -1437,7 +1206,7 @@ export default function CalendarPage() {
               <div className="space-y-2 pt-1">
                 <Button
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer"
-                  onClick={handleCheckIn}
+                  onClick={() => handleCheckIn(selectedAppointment.id)}
                   disabled={
                     selectedAppointment.status === "checked_in" ||
                     selectedAppointment.status === "in_progress" ||
@@ -1463,7 +1232,7 @@ export default function CalendarPage() {
                 <Button
                   variant="outline"
                   className="w-full border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
-                  onClick={handleCancel}
+                  onClick={() => handleCancel(selectedAppointment.id)}
                   disabled={selectedAppointment.status === "cancelled"}
                 >
                   <AlertCircle className="size-3.5 mr-1" />

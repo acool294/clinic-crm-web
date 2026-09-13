@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useState, useRef, useId } from "react";
+import { useState, useRef, useId, useEffect } from "react";
+import { saveVisitRecord } from "@/lib/db/staff";
+import { fetchPatients, type PatientRow } from "@/lib/db/patients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -553,28 +555,58 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function calculateAge(dob: string | null): number | string {
+  if (!dob) return "--";
+  const birthDate = new Date(dob);
+  if (isNaN(birthDate.getTime())) return "--";
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : "--";
+}
+
 export default function DiagnosisPage() {
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Patient selection state
-  const [selectedPatientId, setSelectedPatientId] = useState<string>("P-8821");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
+  const [patientList, setPatientList] = useState<PatientRow[]>([]);
+  const [appointmentId, setAppointmentId] = useState<string>("");
+  const [warning, setWarning] = useState<string | null>(null);
 
-  const currentPatient =
-    MOCK_PATIENTS.find((p) => p.id === selectedPatientId) ?? MOCK_PATIENTS[0];
+  useEffect(() => {
+    fetchPatients()
+      .then((list) => {
+        setPatientList(list);
+        if (list.length > 0) {
+          setSelectedPatientId(list[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const selectedPatient =
+    patientList.find((p) => p.id === selectedPatientId) ?? patientList[0] ?? null;
+
+  const fallbackMock = MOCK_PATIENTS[0];
+  const currentPatient = fallbackMock;
 
   // 2. Vitals state
-  const [vitals, setVitals] = useState<VitalsState>(currentPatient.defaultVitals);
+  const [vitals, setVitals] = useState<VitalsState>(fallbackMock.defaultVitals);
 
   // 3. Clinical assessment state
   const [chiefComplaint, setChiefComplaint] = useState<string>(
-    currentPatient.defaultChiefComplaint
+    fallbackMock.defaultChiefComplaint
   );
   const [diagnosis, setDiagnosis] = useState<string>(
-    currentPatient.defaultDiagnosis
+    fallbackMock.defaultDiagnosis
   );
   const [treatmentPlan, setTreatmentPlan] = useState<string>(
-    currentPatient.defaultTreatmentPlan
+    fallbackMock.defaultTreatmentPlan
   );
 
   // 4. Prescriptions state
@@ -740,27 +772,85 @@ export default function DiagnosisPage() {
   };
 
   // Save handler
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!appointmentId) {
+      setSavedSuccess(false);
+      setWarning(
+        "Note: Visit records require a linked appointment. Please select an appointment ID from the Calendar."
+      );
+      return;
+    }
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    setWarning(null);
+    try {
+      await saveVisitRecord({
+        appointment_id: appointmentId,
+        notes: treatmentPlan,
+        chief_complaint: chiefComplaint,
+        diagnosis: diagnosis,
+        treatment_plan: treatmentPlan,
+        vitals: {
+          bp: vitals.bp,
+          hr: vitals.hr,
+          temp: vitals.temp,
+          spo2: vitals.spo2,
+          weight: vitals.weight,
+          height: vitals.height,
+        },
+        prescriptions: prescriptions
+          .filter((p) => p.medication)
+          .map((p) => ({ medication: p.medication, dosage: p.dosage })),
+      });
       setSavedSuccess(true);
-      setTimeout(() => {
-        setSavedSuccess(false);
-      }, 3000);
-    }, 1500);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch {
+      setWarning("Failed to save. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Initials for avatar
-  const patientInitials = currentPatient.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const patientDisplayName = selectedPatient?.name ?? fallbackMock.name;
+  const patientInitials =
+    patientDisplayName
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "PT";
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Warning Notification */}
+      {warning && (
+        <div
+          role="alert"
+          className="fixed right-6 top-16 z-50 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 shadow-xl shadow-amber-600/10 ring-1 ring-amber-500/20 animate-in fade-in slide-in-from-top-3 duration-300 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+        >
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white shadow-xs">
+            <AlertCircle className="size-4 stroke-[2.5]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+              Notice
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              {warning}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWarning(null)}
+            aria-label="Dismiss warning"
+            className="ml-2 rounded-md p-1 text-amber-700 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Floating Notification on Save */}
       {savedSuccess && (
         <div
@@ -777,7 +867,7 @@ export default function DiagnosisPage() {
             </p>
             <p className="text-xs text-teal-700 dark:text-teal-300">
               Clinical notes, vitals, and prescriptions saved for{" "}
-              <span className="font-semibold">{currentPatient.name}</span>.
+              <span className="font-semibold">{selectedPatient?.name ?? fallbackMock.name}</span>.
             </p>
           </div>
           <button
@@ -817,10 +907,10 @@ export default function DiagnosisPage() {
           </div>
         </div>
 
-        {/* Patient Selector + Save Button */}
+        {/* Patient Selector + Appointment ID + Save Button */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Patient Selector dropdown */}
-          <div className="w-64 sm:w-72">
+          <div className="w-56 sm:w-64">
             <Select
               value={selectedPatientId}
               onValueChange={handleSelectPatient}
@@ -832,28 +922,26 @@ export default function DiagnosisPage() {
                 </div>
               </SelectTrigger>
               <SelectContent align="end" className="w-80">
-                {MOCK_PATIENTS.map((patient) => (
-                  <SelectItem key={patient.id} value={patient.id}>
-                    <div className="flex items-center justify-between gap-3 py-0.5">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">
-                        {patient.name}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Badge
-                          variant="secondary"
-                          className="h-4 bg-slate-100 px-1 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                        >
-                          {patient.id}
-                        </Badge>
-                        <span>
-                          {patient.age}y &bull; {patient.gender[0]}
-                        </span>
-                      </div>
-                    </div>
+                {patientList.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Appointment ID Input */}
+          <div className="w-48 sm:w-56">
+            <Input
+              value={appointmentId}
+              onChange={(e) => {
+                setAppointmentId(e.target.value);
+                if (warning) setWarning(null);
+              }}
+              placeholder="Appointment ID (optional)"
+              className="h-10 border-slate-200 bg-slate-50 text-xs font-medium focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800"
+            />
           </div>
 
           {/* Save Visit Record Primary Button */}
@@ -886,29 +974,31 @@ export default function DiagnosisPage() {
             </AvatarFallback>
           </Avatar>
           <span className="font-semibold text-slate-900 dark:text-slate-100">
-            {currentPatient.name}
+            {selectedPatient?.name ?? fallbackMock.name}
           </span>
           <Badge
             variant="outline"
             className="border-blue-300 bg-white font-mono text-[10px] font-medium text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
           >
-            {currentPatient.id}
+            {selectedPatient ? selectedPatient.id : fallbackMock.id}
           </Badge>
           <span className="text-slate-400 dark:text-slate-500">&bull;</span>
           <span className="font-medium">
-            {currentPatient.age} years old &bull; {currentPatient.gender}
+            {selectedPatient
+              ? `${calculateAge(selectedPatient.dob)} ${calculateAge(selectedPatient.dob) !== "--" ? "years old" : ""} • ${selectedPatient.gender ?? "Unknown"}`
+              : `${fallbackMock.age} years old • ${fallbackMock.gender}`}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
             <Clock className="size-3 text-slate-400" />
-            <span>Last visit: {currentPatient.lastVisit}</span>
+            <span>Last visit: {fallbackMock.lastVisit}</span>
           </div>
           <Badge
             variant="secondary"
             className="border-teal-200 bg-teal-50 text-[10px] font-semibold text-teal-700 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300"
           >
-            Blood Group: {currentPatient.bloodGroup}
+            Blood Group: {selectedPatient?.blood_group ?? fallbackMock.bloodGroup}
           </Badge>
         </div>
       </div>
@@ -1532,7 +1622,7 @@ export default function DiagnosisPage() {
                   variant="outline"
                   className="border-rose-200 bg-rose-50 font-bold text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
                 >
-                  Blood: {currentPatient.bloodGroup}
+                  Blood: {selectedPatient?.blood_group ?? fallbackMock.bloodGroup}
                 </Badge>
               </div>
             </CardHeader>
@@ -1546,18 +1636,20 @@ export default function DiagnosisPage() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
-                    {currentPatient.name}
+                    {selectedPatient?.name ?? fallbackMock.name}
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                     <Badge
                       variant="secondary"
                       className="font-mono text-[10px] text-slate-700 dark:text-slate-300"
                     >
-                      {currentPatient.id}
+                      {selectedPatient ? selectedPatient.id.slice(0, 8) : fallbackMock.id}
                     </Badge>
                     <span className="text-slate-400">&bull;</span>
                     <span className="text-slate-600 dark:text-slate-400">
-                      {currentPatient.age} yrs, {currentPatient.gender}
+                      {selectedPatient
+                        ? `${calculateAge(selectedPatient.dob)} ${calculateAge(selectedPatient.dob) !== "--" ? "yrs" : ""}, ${selectedPatient.gender ?? "Unknown"}`
+                        : `${fallbackMock.age} yrs, ${fallbackMock.gender}`}
                     </span>
                   </div>
                 </div>

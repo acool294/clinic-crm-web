@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { fetchPatients, createPatient, type PatientRow } from "@/lib/db/patients";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -157,1403 +159,6 @@ export interface Patient {
   isInsured?: boolean;
 }
 
-const INITIAL_PATIENTS: Patient[] = [
-  {
-    id: "P-8821",
-    name: "Eleanor Vance",
-    phone: "+91 98765 43210",
-    email: "eleanor@email.com",
-    lastVisit: "2026-09-10",
-    balance: 240,
-    status: "active",
-    age: 34,
-    gender: "Female",
-    clinics: ["Metro Health Dental", "Downtown Wellness Clinic"],
-    nextAppointment: {
-      date: "Sep 24, 2026",
-      time: "10:30 AM",
-      doctor: "Dr. Priya Desai",
-      type: "Root Canal Follow-up",
-      room: "Suite 3B",
-    },
-    tags: [
-      { label: "Regular", color: "blue" },
-      { label: "Follow-up needed", color: "amber" },
-    ],
-    visits: [
-      {
-        id: "V-101",
-        date: "Sep 10, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Endodontics",
-        notes:
-          "Crown fitting completed smoothly. Mild sensitivity reported; prescribed desensitizing gel.",
-        chiefComplaint:
-          "Patient returns for permanent porcelain crown placement on tooth #19 following endodontic therapy. Reports mild lingering sensitivity to cold liquids.",
-        diagnosis:
-          "Status post-root canal therapy #19; localized transient postoperative pulp/periodontal sensitivity.",
-        vitals: {
-          bp: "118/78 mmHg",
-          hr: "72 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "62 kg",
-          height: "168 cm",
-        },
-        treatmentPlan:
-          "Permanent porcelain crown seated with resin-modified glass ionomer cement. Occlusion checked and adjusted with articulating paper. Prescribed desensitizing paste and prophylactic antibiotic course. Scheduled 2-week follow-up.",
-        prescriptions: [
-          {
-            id: "RX-201",
-            medication: "Amoxicillin",
-            dosage: "500mg",
-            instructions: "Take 1 capsule 3 times daily for 5 days with meals",
-            date: "Sep 10, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-          {
-            id: "RX-202",
-            medication: "Ibuprofen",
-            dosage: "400mg",
-            instructions: "Take 1 tablet every 6 hours as needed for discomfort",
-            date: "Sep 10, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-        ],
-        labResults: [
-          {
-            test: "Periapical Digital X-Ray (#19)",
-            result: "Full margin closure; complete obturation to apex; no periapical pathology",
-            status: "normal",
-          },
-          {
-            test: "Pulp Cold Sensitivity Test",
-            result: "Negative on #19 (expected), normal adjacent response",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 24, 2026",
-      },
-      {
-        id: "V-102",
-        date: "Aug 14, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Dentistry",
-        notes:
-          "Routine checkup and cleaning. Identified early decay on tooth 14.",
-        chiefComplaint:
-          "Scheduled 6-month comprehensive dental prophylaxis and oral exam. Patient noted occasional mild sensitivity in the upper right quadrant during brushing.",
-        diagnosis:
-          "Early enamel demineralization (occlusal caries) on tooth #14; localized mild marginal gingivitis.",
-        vitals: {
-          bp: "120/80 mmHg",
-          hr: "70 bpm",
-          temp: "98.6°F",
-          spo2: "98%",
-          weight: "62 kg",
-          height: "168 cm",
-        },
-        treatmentPlan:
-          "Completed full-mouth ultrasonic scaling and polish. Applied topical fluoride varnish. Recommended electric brush technique and daily interdental flossing. Scheduled restorative composite filling.",
-        prescriptions: [
-          {
-            id: "RX-203",
-            medication: "Chlorhexidine Gluconate 0.12%",
-            dosage: "15ml oral rinse",
-            instructions: "Swish and spit twice daily after brushing for 14 days",
-            date: "Aug 14, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-        ],
-        labResults: [
-          {
-            test: "Bitewing Radiographs (4 Views)",
-            result: "Interproximal enamel caries detected at tooth #14; bone levels intact",
-            status: "abnormal",
-          },
-          {
-            test: "Periodontal Pocket Depth Probing",
-            result: "Depths between 2-3mm, minimal bleeding upon probing",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 10, 2026",
-      },
-      {
-        id: "V-103",
-        date: "Jun 22, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Endodontics",
-        notes: "Initial consultation and full mouth digital X-rays taken.",
-        chiefComplaint:
-          "Severe spontaneous throbbing pain radiating to left mandible, aggravated by thermal stimuli and mastication over the past 4 days.",
-        diagnosis:
-          "Symptomatic irreversible pulpitis with symptomatic apical periodontitis (#19).",
-        vitals: {
-          bp: "124/82 mmHg",
-          hr: "78 bpm",
-          temp: "98.8°F",
-          spo2: "99%",
-          weight: "61 kg",
-          height: "168 cm",
-        },
-        treatmentPlan:
-          "Emergency pulpectomy and root canal initialization performed under local anesthesia (2% lidocaine 1:100k epi). Working length determined. Temporary Cavit restoration placed.",
-        prescriptions: [
-          {
-            id: "RX-204",
-            medication: "Ibuprofen",
-            dosage: "600mg",
-            instructions: "Take 1 tablet every 6-8 hours with food for acute pain",
-            date: "Jun 22, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-        ],
-        labResults: [
-          {
-            test: "Panoramic Digital Orthopantomogram",
-            result: "Extensive deep carious lesion encroaching on pulp chamber #19; widened PDL space",
-            status: "abnormal",
-          },
-          {
-            test: "Endodontic Electric Pulp Test",
-            result: "Premature hyper-reactive response at lower threshold",
-            status: "abnormal",
-          },
-        ],
-        followUpDate: "Jul 06, 2026",
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-201",
-        medication: "Amoxicillin",
-        dosage: "500mg",
-        instructions: "Take 1 capsule 3 times daily for 5 days with meals",
-        date: "Sep 10, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-      {
-        id: "RX-202",
-        medication: "Ibuprofen",
-        dosage: "400mg",
-        instructions: "Take 1 tablet every 6 hours as needed for discomfort",
-        date: "Sep 10, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-1",
-        invoiceNumber: "INV-2026-089",
-        date: "Sep 10, 2026",
-        amount: 240,
-        status: "Pending",
-        description: "Porcelain Crown Fitting & Assessment",
-      },
-      {
-        id: "INV-2",
-        invoiceNumber: "INV-2026-042",
-        date: "Aug 14, 2026",
-        amount: 350,
-        status: "Paid",
-        description: "Endodontic Root Canal Therapy - Stage 1",
-      },
-    ],
-  },
-  {
-    id: "P-9042",
-    name: "Marcus Brody",
-    phone: "+91 87654 32109",
-    email: "marcus@email.com",
-    lastVisit: "2026-09-08",
-    balance: 0,
-    status: "active",
-    age: 48,
-    gender: "Male",
-    clinics: ["Downtown Wellness Clinic"],
-    nextAppointment: {
-      date: "Oct 02, 2026",
-      time: "02:00 PM",
-      doctor: "Dr. Rohan Mehra",
-      type: "Cardiovascular Assessment",
-      room: "Exam Room 1",
-    },
-    tags: [
-      { label: "VIP", color: "teal" },
-      { label: "Regular", color: "blue" },
-    ],
-    visits: [
-      {
-        id: "V-201",
-        date: "Sep 08, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "Internal Medicine",
-        notes:
-          "Blood pressure normal (120/80 mmHg). Lipid panel reviewed and stable.",
-        chiefComplaint:
-          "Routine hypertension & hyperlipidemia quarterly follow-up and lipid panel review.",
-        diagnosis:
-          "Essential hypertension (well-controlled); primary hyperlipidemia on statin therapy.",
-        vitals: {
-          bp: "120/80 mmHg",
-          hr: "68 bpm",
-          temp: "98.6°F",
-          spo2: "99%",
-          weight: "82 kg",
-          height: "178 cm",
-        },
-        treatmentPlan:
-          "Maintain Atorvastatin 20mg daily. Continue DASH diet and 30 min daily cardiovascular exercise.",
-        prescriptions: [
-          {
-            id: "RX-301",
-            medication: "Atorvastatin",
-            dosage: "20mg",
-            instructions: "Take 1 tablet once daily at bedtime",
-            date: "Sep 08, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-          {
-            id: "RX-302",
-            medication: "Metformin",
-            dosage: "500mg",
-            instructions: "Take 1 tablet twice daily with meals",
-            date: "Sep 08, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-        ],
-        labResults: [
-          {
-            test: "Lipid Panel (Total / LDL / HDL)",
-            result: "Total: 172 mg/dL, LDL: 88 mg/dL, HDL: 52 mg/dL",
-            status: "normal",
-          },
-          {
-            test: "Comprehensive Metabolic Panel (CMP)",
-            result: "eGFR >90, Creatinine 0.9 mg/dL, AST/ALT within normal limits",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Dec 08, 2026",
-      },
-      {
-        id: "V-202",
-        date: "Jun 11, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Cardiology",
-        notes:
-          "ECG performed with normal sinus rhythm. Continued current statin dosage.",
-        chiefComplaint:
-          "Cardiology consult for exertional fatigue evaluation and routine resting ECG.",
-        diagnosis:
-          "Cardiovascular risk assessment; normal sinus rhythm; no acute ischemic changes.",
-        vitals: {
-          bp: "124/82 mmHg",
-          hr: "72 bpm",
-          temp: "98.5°F",
-          spo2: "98%",
-          weight: "83 kg",
-          height: "178 cm",
-        },
-        treatmentPlan:
-          "Resting 12-lead ECG confirmed sinus rhythm. Continue lipid management.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "12-Lead Electrocardiogram (ECG)",
-            result: "Normal sinus rhythm, HR 72, normal axis, no ST-T abnormalities",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 08, 2026",
-      },
-      {
-        id: "V-203",
-        date: "Mar 15, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "Internal Medicine",
-        notes:
-          "Quarterly review. Notable lifestyle improvements and glycemic control.",
-        chiefComplaint:
-          "Quarterly wellness review and assessment of glycemic control and lifestyle modifications.",
-        diagnosis:
-          "Type 2 diabetes mellitus (well controlled), pre-hypertension.",
-        vitals: {
-          bp: "126/82 mmHg",
-          hr: "70 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "84 kg",
-          height: "178 cm",
-        },
-        treatmentPlan:
-          "Fasting blood glucose stable. Lifestyle improvements sustained.",
-        prescriptions: [
-          {
-            id: "RX-303",
-            medication: "Metformin",
-            dosage: "500mg",
-            instructions: "Take 1 tablet twice daily with meals",
-            date: "Mar 15, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-        ],
-        labResults: [
-          {
-            test: "Hemoglobin A1c (HbA1c)",
-            result: "6.2% (Target < 7.0%)",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Jun 11, 2026",
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-301",
-        medication: "Atorvastatin",
-        dosage: "20mg",
-        instructions: "Take 1 tablet once daily at bedtime",
-        date: "Sep 08, 2026",
-        doctor: "Dr. Rohan Mehra",
-      },
-      {
-        id: "RX-302",
-        medication: "Metformin",
-        dosage: "500mg",
-        instructions: "Take 1 tablet twice daily with meals",
-        date: "Sep 08, 2026",
-        doctor: "Dr. Rohan Mehra",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-3",
-        invoiceNumber: "INV-2026-074",
-        date: "Sep 08, 2026",
-        amount: 180,
-        status: "Paid",
-        description: "Comprehensive Metabolic Panel & Consultation",
-      },
-      {
-        id: "INV-4",
-        invoiceNumber: "INV-2026-031",
-        date: "Jun 11, 2026",
-        amount: 220,
-        status: "Paid",
-        description: "Standard 12-Lead ECG & Cardiology Review",
-      },
-    ],
-  },
-  {
-    id: "P-7619",
-    name: "Sarah Jenkins",
-    phone: "+91 76543 21098",
-    email: "sarah@email.com",
-    lastVisit: "2026-09-05",
-    balance: 120,
-    status: "active",
-    age: 29,
-    gender: "Female",
-    clinics: ["CareFirst Pediatrics & Family"],
-    nextAppointment: {
-      date: "Sep 28, 2026",
-      time: "11:15 AM",
-      doctor: "Dr. Anita Roy",
-      type: "Dermatology Follow-up",
-      room: "Suite 2A",
-    },
-    tags: [{ label: "Regular", color: "blue" }],
-    visits: [
-      {
-        id: "V-301",
-        date: "Sep 05, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Dermatology",
-        notes:
-          "Eczema flare-up on right forearm. Prescribed topical corticosteroid taper.",
-        chiefComplaint:
-          "Pruritic erythematous rash with flaking on right forearm lasting 10 days.",
-        diagnosis:
-          "Atopic dermatitis (acute flare-up, localized to right volar forearm).",
-        vitals: {
-          bp: "112/74 mmHg",
-          hr: "74 bpm",
-          temp: "98.6°F",
-          spo2: "100%",
-          weight: "58 kg",
-          height: "165 cm",
-        },
-        treatmentPlan:
-          "Apply Hydrocortisone Cream 2.5% twice daily for 7 days then taper to ceramide barrier cream. Oral antihistamines at bedtime.",
-        prescriptions: [
-          {
-            id: "RX-401",
-            medication: "Hydrocortisone Cream 2.5%",
-            dosage: "30g tube",
-            instructions: "Apply thin layer to affected area twice daily for 7 days",
-            date: "Sep 05, 2026",
-            doctor: "Dr. Anita Roy",
-          },
-          {
-            id: "RX-402",
-            medication: "Cetirizine HCl",
-            dosage: "10mg",
-            instructions: "Take 1 tablet once daily at bedtime",
-            date: "Sep 05, 2026",
-            doctor: "Dr. Anita Roy",
-          },
-        ],
-        labResults: [
-          {
-            test: "Skin Surface Swab Culture",
-            result: "Negative for secondary bacterial or fungal superinfection",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 28, 2026",
-      },
-      {
-        id: "V-302",
-        date: "Jul 20, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Dermatology",
-        notes:
-          "Skin allergy prick test conducted. Mild sensitivity to seasonal pollens.",
-        chiefComplaint:
-          "Skin allergy prick testing following recurrent contact urticaria.",
-        diagnosis:
-          "Allergic contact dermatitis; mild environmental aeroallergen sensitization.",
-        vitals: {
-          bp: "114/76 mmHg",
-          hr: "70 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "58 kg",
-          height: "165 cm",
-        },
-        treatmentPlan:
-          "Patch & prick test panel completed. Avoid identified cosmetic fragrance allergens.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Epicutaneous Allergy Prick Panel (36 Antigens)",
-            result: "Mild positive wheal to tree pollens and fragrance mix I (4mm)",
-            status: "abnormal",
-          },
-        ],
-        followUpDate: "Sep 05, 2026",
-      },
-      {
-        id: "V-303",
-        date: "Apr 10, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes:
-          "Annual preventive physical and routine preventative blood panel.",
-        chiefComplaint:
-          "Annual comprehensive preventive health physical exam.",
-        diagnosis:
-          "Routine adult preventive wellness exam; no chronic systemic illnesses.",
-        vitals: {
-          bp: "110/72 mmHg",
-          hr: "68 bpm",
-          temp: "98.6°F",
-          spo2: "99%",
-          weight: "57 kg",
-          height: "165 cm",
-        },
-        treatmentPlan:
-          "Preventative screening blood panel ordered. All immunizations up to date.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Complete Blood Count (CBC)",
-            result: "WBC: 6.4, Hb: 13.8 g/dL, Platelets: 245k",
-            status: "normal",
-          },
-        ],
-        followUpDate: null,
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-401",
-        medication: "Hydrocortisone Cream 2.5%",
-        dosage: "30g tube",
-        instructions: "Apply thin layer to affected area twice daily for 7 days",
-        date: "Sep 05, 2026",
-        doctor: "Dr. Anita Roy",
-      },
-      {
-        id: "RX-402",
-        medication: "Cetirizine HCl",
-        dosage: "10mg",
-        instructions: "Take 1 tablet once daily at bedtime",
-        date: "Sep 05, 2026",
-        doctor: "Dr. Anita Roy",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-5",
-        invoiceNumber: "INV-2026-092",
-        date: "Sep 05, 2026",
-        amount: 120,
-        status: "Pending",
-        description: "Dermatological Consultation & Topical Formulation",
-      },
-      {
-        id: "INV-6",
-        invoiceNumber: "INV-2026-055",
-        date: "Jul 20, 2026",
-        amount: 150,
-        status: "Paid",
-        description: "Skin Allergy Sensitivity Screening Panel",
-      },
-    ],
-  },
-  {
-    id: "P-8104",
-    name: "David Alvarez",
-    phone: "+91 65432 10987",
-    email: "david@email.com",
-    lastVisit: "2026-08-28",
-    balance: 0,
-    status: "inactive",
-    age: 52,
-    gender: "Male",
-    clinics: ["Metro Health Dental"],
-    nextAppointment: null,
-    tags: [{ label: "Follow-up needed", color: "amber" }],
-    visits: [
-      {
-        id: "V-401",
-        date: "Aug 28, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Periodontics",
-        notes:
-          "Periodontal maintenance completed. Patient reminded to reschedule 6-month recall.",
-        chiefComplaint:
-          "Periodontal maintenance 3-month recall and jaw tightness upon waking.",
-        diagnosis:
-          "Chronic periodontitis (generalized stage II, grade B, in maintenance); mild nocturnal bruxism.",
-        vitals: {
-          bp: "128/84 mmHg",
-          hr: "75 bpm",
-          temp: "98.6°F",
-          spo2: "98%",
-          weight: "86 kg",
-          height: "175 cm",
-        },
-        treatmentPlan:
-          "Selective subgingival debridement and chlorhexidine irrigation. Recommended custom nightguard fabrication.",
-        prescriptions: [
-          {
-            id: "RX-501",
-            medication: "Chlorhexidine 0.12%",
-            dosage: "300ml bottle",
-            instructions: "Rinse with 15ml twice daily after brushing for 2 weeks",
-            date: "Aug 28, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-        ],
-        labResults: [
-          {
-            test: "Periodontal Pocket Depth Charting",
-            result: "Probing depths 2-3mm with stable bone levels; isolated 4mm distal #18",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Nov 28, 2026",
-      },
-      {
-        id: "V-402",
-        date: "Feb 14, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Periodontics",
-        notes:
-          "Deep scaling upper right quadrant. Healing uneventful without pockets.",
-        chiefComplaint:
-          "Scheduled quadrant deep scaling and root planing for localized pockets.",
-        diagnosis:
-          "Localized moderate periodontitis in maxillary right quadrant.",
-        vitals: {
-          bp: "130/84 mmHg",
-          hr: "76 bpm",
-          temp: "98.5°F",
-          spo2: "98%",
-          weight: "86 kg",
-          height: "175 cm",
-        },
-        treatmentPlan:
-          "Completed SRP upper right quadrant under local infiltration anesthesia. Post-op instructions given.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Digital Bitewing Radiographs",
-            result: "Subgingival calculus deposits removed; no furcation involvement",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Aug 28, 2026",
-      },
-      {
-        id: "V-403",
-        date: "Nov 09, 2025",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes: "General consultation regarding episodic TMJ joint discomfort.",
-        chiefComplaint:
-          "Bilateral temporomandibular joint clicking and dull morning facial soreness.",
-        diagnosis:
-          "Myofascial pain dysfunction syndrome; temporomandibular joint disc displacement with reduction.",
-        vitals: {
-          bp: "126/82 mmHg",
-          hr: "72 bpm",
-          temp: "98.6°F",
-          spo2: "99%",
-          weight: "85 kg",
-          height: "175 cm",
-        },
-        treatmentPlan:
-          "Soft diet for 2 weeks, warm moist compresses, jaw stretch exercises. NSAIDs for pain.",
-        prescriptions: [
-          {
-            id: "RX-502",
-            medication: "Paracetamol",
-            dosage: "650mg",
-            instructions: "Take 1 tablet every 6-8 hours as needed for joint ache",
-            date: "Nov 09, 2025",
-            doctor: "Dr. Rohan Mehra",
-          },
-        ],
-        labResults: [
-          {
-            test: "TMJ Range of Motion Examination",
-            result: "Max interincisal opening 42mm, bilateral joint clicking without lock",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Feb 14, 2026",
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-501",
-        medication: "Chlorhexidine 0.12%",
-        dosage: "300ml bottle",
-        instructions: "Rinse with 15ml twice daily after brushing for 2 weeks",
-        date: "Aug 28, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-      {
-        id: "RX-502",
-        medication: "Paracetamol",
-        dosage: "650mg",
-        instructions: "Take 1 tablet every 6-8 hours as needed for joint ache",
-        date: "Aug 28, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-7",
-        invoiceNumber: "INV-2026-061",
-        date: "Aug 28, 2026",
-        amount: 210,
-        status: "Paid",
-        description: "Periodontal Therapy & Scaling Maintenance",
-      },
-      {
-        id: "INV-8",
-        invoiceNumber: "INV-2026-015",
-        date: "Feb 14, 2026",
-        amount: 190,
-        status: "Paid",
-        description: "Targeted Quadrant Root Planing",
-      },
-    ],
-  },
-  {
-    id: "P-9230",
-    name: "Amanda Hayes",
-    phone: "+91 54321 09876",
-    email: "amanda@email.com",
-    lastVisit: "2026-09-12",
-    balance: 340,
-    status: "active",
-    age: 41,
-    gender: "Female",
-    clinics: ["Downtown Wellness Clinic", "City Orthopedics"],
-    nextAppointment: {
-      date: "Sep 26, 2026",
-      time: "03:30 PM",
-      doctor: "Dr. Vikram Patel",
-      type: "Physical Therapy Assessment",
-      room: "Rehab Gym",
-    },
-    tags: [
-      { label: "VIP", color: "teal" },
-      { label: "Follow-up needed", color: "amber" },
-    ],
-    visits: [
-      {
-        id: "V-501",
-        date: "Sep 12, 2026",
-        doctor: "Dr. Vikram Patel",
-        department: "Orthopedics",
-        notes:
-          "Post-op knee rehab session #4. Range of motion improved to 110 degrees.",
-        chiefComplaint:
-          "Postoperative rehabilitation session #4 following right knee arthroscopic ACL reconstruction.",
-        diagnosis:
-          "Status post right ACL reconstruction with hamstring autograft (week 6).",
-        vitals: {
-          bp: "116/76 mmHg",
-          hr: "68 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "64 kg",
-          height: "170 cm",
-        },
-        treatmentPlan:
-          "Closed kinetic chain exercises, stationary cycling 15 min, active knee flexion progression to 110 degrees. Cryotherapy applied.",
-        prescriptions: [
-          {
-            id: "RX-601",
-            medication: "Celecoxib",
-            dosage: "200mg",
-            instructions:
-              "Take 1 capsule once daily with food for anti-inflammatory relief",
-            date: "Sep 12, 2026",
-            doctor: "Dr. Vikram Patel",
-          },
-          {
-            id: "RX-602",
-            medication: "Glucosamine Sulfate",
-            dosage: "1500mg",
-            instructions: "Take 1 tablet daily with morning breakfast",
-            date: "Sep 12, 2026",
-            doctor: "Dr. Vikram Patel",
-          },
-        ],
-        labResults: [
-          {
-            test: "Knee Goniometric Active Range of Motion",
-            result: "Extension: 0°, Flexion: 110° (Target achieved)",
-            status: "normal",
-          },
-          {
-            test: "Quadriceps Isometric Strength Index",
-            result: "78% compared to contralateral healthy limb",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 26, 2026",
-      },
-      {
-        id: "V-502",
-        date: "Aug 29, 2026",
-        doctor: "Dr. Vikram Patel",
-        department: "Orthopedics",
-        notes:
-          "Rehab session #3. Quad isometric strengthening exercises progressed smoothly.",
-        chiefComplaint:
-          "Post-op knee rehab check and progression to weight-bearing exercises.",
-        diagnosis:
-          "Right knee ACL reconstruction convalescence; improving joint stability.",
-        vitals: {
-          bp: "118/78 mmHg",
-          hr: "70 bpm",
-          temp: "98.6°F",
-          spo2: "99%",
-          weight: "64 kg",
-          height: "170 cm",
-        },
-        treatmentPlan:
-          "Isometric quad sets, straight leg raises, patellar mobilizations. Continue hinged knee brace during ambulation.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Knee Goniometric Range of Motion",
-            result: "Extension: -2°, Flexion: 95°",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 12, 2026",
-      },
-      {
-        id: "V-503",
-        date: "Aug 15, 2026",
-        doctor: "Dr. Vikram Patel",
-        department: "Orthopedics",
-        notes:
-          "Rehab session #2. Mild effusion managed with cold therapy and elevation.",
-        chiefComplaint:
-          "Post-op swelling and mild joint effusion following initial physical therapy.",
-        diagnosis:
-          "Mild postoperative reactive joint effusion right knee.",
-        vitals: {
-          bp: "120/80 mmHg",
-          hr: "72 bpm",
-          temp: "98.7°F",
-          spo2: "99%",
-          weight: "64 kg",
-          height: "170 cm",
-        },
-        treatmentPlan:
-          "PRICE protocol (protection, rest, ice, compression, elevation). Temporary reduction in resistance load.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Knee Joint Effusion Clinical Ballot Test",
-            result: "Trace fluid wave palpable; no erythema or fever",
-            status: "abnormal",
-          },
-        ],
-        followUpDate: "Aug 29, 2026",
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-601",
-        medication: "Celecoxib",
-        dosage: "200mg",
-        instructions:
-          "Take 1 capsule once daily with food for anti-inflammatory relief",
-        date: "Sep 12, 2026",
-        doctor: "Dr. Vikram Patel",
-      },
-      {
-        id: "RX-602",
-        medication: "Glucosamine Sulfate",
-        dosage: "1500mg",
-        instructions: "Take 1 tablet daily with morning breakfast",
-        date: "Sep 12, 2026",
-        doctor: "Dr. Vikram Patel",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-9",
-        invoiceNumber: "INV-2026-098",
-        date: "Sep 12, 2026",
-        amount: 340,
-        status: "Pending",
-        description: "Advanced Orthopedic Rehabilitation Session",
-      },
-      {
-        id: "INV-10",
-        invoiceNumber: "INV-2026-081",
-        date: "Aug 29, 2026",
-        amount: 280,
-        status: "Paid",
-        description: "Physical Therapy Biomechanical Assessment",
-      },
-    ],
-  },
-  {
-    id: "P-7801",
-    name: "Robert Chen",
-    phone: "+91 43210 98765",
-    email: "robert@email.com",
-    lastVisit: "2026-09-01",
-    balance: 0,
-    status: "active",
-    age: 63,
-    gender: "Male",
-    clinics: ["Downtown Wellness Clinic"],
-    nextAppointment: {
-      date: "Oct 15, 2026",
-      time: "09:00 AM",
-      doctor: "Dr. Rohan Mehra",
-      type: "Diabetic Health Screen",
-      room: "Suite 1B",
-    },
-    tags: [{ label: "Regular", color: "blue" }],
-    visits: [
-      {
-        id: "V-601",
-        date: "Sep 01, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "Endocrinology",
-        notes:
-          "HbA1c checked at 6.8%. Foot examination normal with intact sensation and pulses.",
-        chiefComplaint:
-          "Routine diabetic endocrine monitoring, glycemic control evaluation, and annual foot examination.",
-        diagnosis:
-          "Type 2 diabetes mellitus without acute complications; essential hypertension.",
-        vitals: {
-          bp: "126/80 mmHg",
-          hr: "72 bpm",
-          temp: "98.5°F",
-          spo2: "98%",
-          weight: "79 kg",
-          height: "172 cm",
-        },
-        treatmentPlan:
-          "Continue Empagliflozin 10mg and Lisinopril 10mg daily. Monofilament foot exam demonstrated intact protective sensation.",
-        prescriptions: [
-          {
-            id: "RX-701",
-            medication: "Empagliflozin",
-            dosage: "10mg",
-            instructions:
-              "Take 1 tablet once daily in the morning with or without food",
-            date: "Sep 01, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-          {
-            id: "RX-702",
-            medication: "Lisinopril",
-            dosage: "10mg",
-            instructions: "Take 1 tablet once daily in the morning",
-            date: "Sep 01, 2026",
-            doctor: "Dr. Rohan Mehra",
-          },
-        ],
-        labResults: [
-          {
-            test: "Hemoglobin A1c (HbA1c)",
-            result: "6.8% (Target < 7.0%)",
-            status: "normal",
-          },
-          {
-            test: "Urinary Albumin-to-Creatinine Ratio (UACR)",
-            result: "18 mg/g (Normal < 30 mg/g)",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Oct 15, 2026",
-      },
-      {
-        id: "V-602",
-        date: "May 20, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "Internal Medicine",
-        notes:
-          "Renal panel review. Microalbumin ratio stable and within expected limits.",
-        chiefComplaint:
-          "Quarterly renal function surveillance for ACE inhibitor therapy.",
-        diagnosis:
-          "Chronic kidney disease stage 1 (stable, normal eGFR on Lisinopril).",
-        vitals: {
-          bp: "128/82 mmHg",
-          hr: "70 bpm",
-          temp: "98.6°F",
-          spo2: "98%",
-          weight: "80 kg",
-          height: "172 cm",
-        },
-        treatmentPlan:
-          "Serum potassium and creatinine within safe targets. Renewed Lisinopril prescription.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Basic Metabolic Panel (Creatinine / Potassium)",
-            result: "Creatinine: 1.0 mg/dL, K+: 4.4 mmol/L, eGFR >85",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Sep 01, 2026",
-      },
-      {
-        id: "V-603",
-        date: "Feb 18, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Preventative Care",
-        notes:
-          "Annual influenza immunization administered without any adverse response.",
-        chiefComplaint:
-          "Seasonal influenza immunization walk-in visit.",
-        diagnosis:
-          "Preventive health maintenance; influenza vaccination administered.",
-        vitals: {
-          bp: "124/78 mmHg",
-          hr: "68 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "80 kg",
-          height: "172 cm",
-        },
-        treatmentPlan:
-          "Quadrivalent influenza vaccine (0.5ml IM right deltoid) administered. Patient observed 15 min with no adverse reaction.",
-        prescriptions: [],
-        labResults: [],
-        followUpDate: null,
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-701",
-        medication: "Empagliflozin",
-        dosage: "10mg",
-        instructions:
-          "Take 1 tablet once daily in the morning with or without food",
-        date: "Sep 01, 2026",
-        doctor: "Dr. Rohan Mehra",
-      },
-      {
-        id: "RX-702",
-        medication: "Lisinopril",
-        dosage: "10mg",
-        instructions: "Take 1 tablet once daily in the morning",
-        date: "Sep 01, 2026",
-        doctor: "Dr. Rohan Mehra",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-11",
-        invoiceNumber: "INV-2026-068",
-        date: "Sep 01, 2026",
-        amount: 160,
-        status: "Paid",
-        description: "Endocrine Specialist Consult & HbA1c Lab",
-      },
-      {
-        id: "INV-12",
-        invoiceNumber: "INV-2026-024",
-        date: "May 20, 2026",
-        amount: 140,
-        status: "Paid",
-        description: "Comprehensive Renal Profile Screening",
-      },
-    ],
-  },
-  {
-    id: "P-8456",
-    name: "Priya Sharma",
-    phone: "+91 32109 87654",
-    email: "priya@email.com",
-    lastVisit: "2026-09-11",
-    balance: 180,
-    status: "new",
-    age: 26,
-    gender: "Female",
-    clinics: ["Downtown Wellness Clinic"],
-    nextAppointment: {
-      date: "Sep 22, 2026",
-      time: "04:00 PM",
-      doctor: "Dr. Anita Roy",
-      type: "New Patient Intake Part 2",
-      room: "Suite 2B",
-    },
-    tags: [
-      { label: "New Patient", color: "sky" },
-      { label: "VIP", color: "teal" },
-    ],
-    visits: [
-      {
-        id: "V-701",
-        date: "Sep 11, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "General Practice",
-        notes:
-          "Initial consultation and medical history intake. Baseline blood tests ordered.",
-        chiefComplaint:
-          "Persistent generalized fatigue, mild hair thinning, and feeling cold over the past 3 months.",
-        diagnosis:
-          "Fatigue under evaluation; suspected vitamin D deficiency and mild microcytic anemia.",
-        vitals: {
-          bp: "108/70 mmHg",
-          hr: "76 bpm",
-          temp: "98.2°F",
-          spo2: "99%",
-          weight: "52 kg",
-          height: "162 cm",
-        },
-        treatmentPlan:
-          "Prescribed weekly therapeutic Cholecalciferol and daily oral iron supplementation. Baseline thyroid and ferritin panel ordered.",
-        prescriptions: [
-          {
-            id: "RX-801",
-            medication: "Vitamin D3 (Cholecalciferol)",
-            dosage: "60,000 IU",
-            instructions:
-              "Take 1 capsule weekly after lunch for 8 consecutive weeks",
-            date: "Sep 11, 2026",
-            doctor: "Dr. Anita Roy",
-          },
-          {
-            id: "RX-802",
-            medication: "Iron Polysaccharide Complex",
-            dosage: "150mg",
-            instructions:
-              "Take 1 capsule daily on an empty stomach with citrus juice",
-            date: "Sep 11, 2026",
-            doctor: "Dr. Anita Roy",
-          },
-        ],
-        labResults: [
-          {
-            test: "Serum 25-Hydroxy Vitamin D",
-            result: "14.2 ng/mL (Deficient: < 20 ng/mL)",
-            status: "abnormal",
-          },
-          {
-            test: "Serum Ferritin & Iron Panel",
-            result: "Ferritin: 18 ng/mL (Low-normal), Iron: 48 ug/dL",
-            status: "abnormal",
-          },
-          {
-            test: "Thyroid Stimulating Hormone (TSH)",
-            result: "Pending laboratory batch processing",
-            status: "pending",
-          },
-        ],
-        followUpDate: "Sep 22, 2026",
-      },
-      {
-        id: "V-702",
-        date: "Aug 30, 2026",
-        doctor: "Nurse triage",
-        department: "Clinical Triage",
-        notes:
-          "Pre-registration health questionnaire and vaccine history record.",
-        chiefComplaint:
-          "New patient pre-registration health questionnaire, vaccination verification, and clinical triage.",
-        diagnosis:
-          "New patient administrative intake and baseline vital assessment.",
-        vitals: {
-          bp: "110/72 mmHg",
-          hr: "74 bpm",
-          temp: "98.4°F",
-          spo2: "99%",
-          weight: "52 kg",
-          height: "162 cm",
-        },
-        treatmentPlan:
-          "Completed health background questionnaire. Scheduled comprehensive physician appointment.",
-        prescriptions: [],
-        labResults: [],
-        followUpDate: "Sep 11, 2026",
-      },
-      {
-        id: "V-703",
-        date: "Aug 25, 2026",
-        doctor: "Admin Desk",
-        department: "Patient Intake",
-        notes:
-          "Account setup and insurance coverage policy confirmation.",
-        chiefComplaint:
-          "Insurance verification and electronic medical record creation.",
-        diagnosis:
-          "Administrative onboarding.",
-        vitals: {
-          bp: "110/70 mmHg",
-          hr: "72 bpm",
-          temp: "98.6°F",
-          spo2: "99%",
-          weight: "52 kg",
-          height: "162 cm",
-        },
-        treatmentPlan:
-          "Insurance coverage active. Medical records transferred from prior provider.",
-        prescriptions: [],
-        labResults: [],
-        followUpDate: "Aug 30, 2026",
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-801",
-        medication: "Vitamin D3 (Cholecalciferol)",
-        dosage: "60,000 IU",
-        instructions:
-          "Take 1 capsule weekly after lunch for 8 consecutive weeks",
-        date: "Sep 11, 2026",
-        doctor: "Dr. Anita Roy",
-      },
-      {
-        id: "RX-802",
-        medication: "Iron Polysaccharide Complex",
-        dosage: "150mg",
-        instructions:
-          "Take 1 capsule daily on an empty stomach with citrus juice",
-        date: "Sep 11, 2026",
-        doctor: "Dr. Anita Roy",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-13",
-        invoiceNumber: "INV-2026-103",
-        date: "Sep 11, 2026",
-        amount: 180,
-        status: "Pending",
-        description: "New Patient Extended Diagnostic Intake",
-      },
-      {
-        id: "INV-14",
-        invoiceNumber: "INV-2026-099",
-        date: "Aug 30, 2026",
-        amount: 50,
-        status: "Paid",
-        description: "Initial Administrative File Registration",
-      },
-    ],
-  },
-  {
-    id: "P-9102",
-    name: "James Wilson",
-    phone: "+91 21098 76543",
-    email: "james@email.com",
-    lastVisit: "2026-07-15",
-    balance: 450,
-    status: "inactive",
-    age: 58,
-    gender: "Male",
-    clinics: ["Metro Health Dental", "CareFirst Pediatrics & Family"],
-    nextAppointment: null,
-    tags: [{ label: "Follow-up needed", color: "amber" }],
-    visits: [
-      {
-        id: "V-801",
-        date: "Jul 15, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Prosthodontics",
-        notes:
-          "Bridge consultation. Discussion around 3-unit fixed bridge vs dental implant.",
-        chiefComplaint:
-          "Consultation regarding restoration of missing maxillary right first molar (#3) and masticatory difficulty.",
-        diagnosis:
-          "Partial edentulism (missing tooth #3); candidate for 3-unit fixed bridge vs endosseous implant.",
-        vitals: {
-          bp: "134/86 mmHg",
-          hr: "78 bpm",
-          temp: "98.6°F",
-          spo2: "97%",
-          weight: "88 kg",
-          height: "176 cm",
-        },
-        treatmentPlan:
-          "Discussed pros/cons of dental implant vs bridge. Diagnostic study models and CBCT scan requested.",
-        prescriptions: [
-          {
-            id: "RX-901",
-            medication: "Amoxicillin/Clavulanate",
-            dosage: "875/125mg",
-            instructions: "Take 1 tablet twice daily every 12 hours for 7 days",
-            date: "Jul 15, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-          {
-            id: "RX-902",
-            medication: "Tramadol HCl",
-            dosage: "50mg",
-            instructions:
-              "Take 1 tablet every 6 hours as needed for severe toothache",
-            date: "Jul 15, 2026",
-            doctor: "Dr. Priya Desai",
-          },
-        ],
-        labResults: [
-          {
-            test: "Cone Beam CT Scan (CBCT)",
-            result: "Adequate bone height (11mm) and width (7.5mm) at site #3",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Oct 10, 2026",
-      },
-      {
-        id: "V-802",
-        date: "Apr 18, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "General Dentistry",
-        notes:
-          "Routine prophy and exam. Moderate calculus accumulation.",
-        chiefComplaint:
-          "Routine cleaning and exam with moderate subgingival calculus buildup.",
-        diagnosis:
-          "Generalized marginal gingivitis; moderate calculus deposition.",
-        vitals: {
-          bp: "136/88 mmHg",
-          hr: "80 bpm",
-          temp: "98.6°F",
-          spo2: "98%",
-          weight: "88 kg",
-          height: "176 cm",
-        },
-        treatmentPlan:
-          "Full-mouth gross debridement and ultrasonic prophy completed. Recommended interdental brushes.",
-        prescriptions: [],
-        labResults: [
-          {
-            test: "Bitewing Radiographic Survey",
-            result: "No recurrent caries detected; mild horizontal crestal bone resorption",
-            status: "normal",
-          },
-        ],
-        followUpDate: "Jul 15, 2026",
-      },
-      {
-        id: "V-803",
-        date: "Jan 10, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes: "General consultation for seasonal allergic rhinitis.",
-        chiefComplaint:
-          "Seasonal allergic rhinitis symptoms, nasal congestion, and itchy watery eyes.",
-        diagnosis:
-          "Seasonal allergic rhinitis; mild Eustachian tube dysfunction.",
-        vitals: {
-          bp: "132/84 mmHg",
-          hr: "74 bpm",
-          temp: "98.5°F",
-          spo2: "98%",
-          weight: "87 kg",
-          height: "176 cm",
-        },
-        treatmentPlan:
-          "Fluticasone propionate nasal spray 2 sprays each nostril daily. Saline nasal irrigation.",
-        prescriptions: [],
-        labResults: [],
-        followUpDate: null,
-      },
-    ],
-    prescriptions: [
-      {
-        id: "RX-901",
-        medication: "Amoxicillin/Clavulanate",
-        dosage: "875/125mg",
-        instructions: "Take 1 tablet twice daily every 12 hours for 7 days",
-        date: "Jul 15, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-      {
-        id: "RX-902",
-        medication: "Tramadol HCl",
-        dosage: "50mg",
-        instructions:
-          "Take 1 tablet every 6 hours as needed for severe toothache",
-        date: "Jul 15, 2026",
-        doctor: "Dr. Priya Desai",
-      },
-    ],
-    invoices: [
-      {
-        id: "INV-15",
-        invoiceNumber: "INV-2026-052",
-        date: "Jul 15, 2026",
-        amount: 450,
-        status: "Overdue",
-        description: "Prosthodontic Evaluation & Cast Study Models",
-      },
-      {
-        id: "INV-16",
-        invoiceNumber: "INV-2026-019",
-        date: "Apr 18, 2026",
-        amount: 200,
-        status: "Paid",
-        description: "Comprehensive Dental Prophylaxis & Polishing",
-      },
-    ],
-  },
-];
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -1594,7 +199,33 @@ function calculateAge(dob: string): number {
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
+  return age >= 0 ? age : 0;
+}
+
+function mapRowToPatient(r: PatientRow): Patient {
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone ?? "",
+    email: r.email ?? "",
+    lastVisit: r.created_at ? r.created_at.split("T")[0] : "",
+    balance: 0,
+    status: "active" as const,
+    age: r.dob ? calculateAge(r.dob) : 0,
+    gender: (r.gender ?? "Other") as "Male" | "Female" | "Other",
+    clinics: [],
+    nextAppointment: null,
+    tags: [],
+    visits: [],
+    prescriptions: [],
+    invoices: [],
+    dob: r.dob ?? undefined,
+    address: r.address ?? undefined,
+    bloodGroup: r.blood_group ?? undefined,
+    alternatePhone: r.alternate_phone ?? undefined,
+    insuranceProvider: r.insurance_provider ?? undefined,
+    isInsured: r.is_insured,
+  };
 }
 
 function PatientStatusBadge({ status }: { status: PatientStatus }) {
@@ -1687,7 +318,10 @@ function TagBadge({ tag }: { tag: PatientTag }) {
 }
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<Patient[]>(INITIAL_PATIENTS);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<PastVisit | null>(null);
@@ -1709,6 +343,23 @@ export default function PatientsPage() {
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const loadPatientsData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setLoadError(null);
+      const rows = await fetchPatients();
+      setPatients(rows.map(mapRowToPatient));
+    } catch {
+      setLoadError("Failed to load patients.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPatientsData();
+  }, [loadPatientsData]);
+
   // Filtered patients based on search
   const filteredPatients = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -1723,7 +374,7 @@ export default function PatientsPage() {
     });
   }, [patients, searchQuery]);
 
-  function handleCreatePatient(e: React.FormEvent<HTMLFormElement>) {
+  async function handleCreatePatient(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (
       !newPatient.name.trim() ||
@@ -1732,98 +383,50 @@ export default function PatientsPage() {
       !newPatient.phone.trim() ||
       !newPatient.address.trim()
     ) {
-      setFormError(
-        "Please fill in all mandatory fields: Full Name, Date of Birth, Gender, Phone Number, and Address."
-      );
+      setFormError("Please fill all required fields.");
       return;
     }
 
+    setIsCreating(true);
     setFormError(null);
-    const calculatedAge = calculateAge(newPatient.dob);
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const newId = `P-${randomNum}`;
+    try {
+      await createPatient({
+        name: newPatient.name.trim(),
+        phone: newPatient.phone.trim(),
+        email: newPatient.email.trim() || null,
+        dob: newPatient.dob,
+        gender: newPatient.gender as "Male" | "Female" | "Other",
+        address: newPatient.address.trim(),
+        blood_group: newPatient.bloodGroup || null,
+        alternate_phone: newPatient.alternatePhone.trim() || null,
+        insurance_provider: newPatient.isInsured
+          ? newPatient.insuranceProvider || null
+          : null,
+        is_insured: newPatient.isInsured,
+      });
 
-    const created: Patient = {
-      id: newId,
-      name: newPatient.name.trim(),
-      phone: newPatient.phone.trim(),
-      email:
-        newPatient.email.trim() ||
-        `${newPatient.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      lastVisit: new Date().toISOString().slice(0, 10),
-      balance: 0,
-      status: "new",
-      age: calculatedAge >= 0 ? calculatedAge : 0,
-      gender: (newPatient.gender as "Female" | "Male" | "Other") || "Other",
-      clinics: ["Downtown Wellness Clinic"],
-      nextAppointment: null,
-      tags: [
-        {
-          label: "New Patient",
-          color: "sky",
-        },
-      ],
-      dob: newPatient.dob,
-      address: newPatient.address.trim(),
-      bloodGroup: newPatient.bloodGroup,
-      alternatePhone: newPatient.alternatePhone.trim(),
-      insuranceProvider: newPatient.isInsured ? newPatient.insuranceProvider : "",
-      isInsured: newPatient.isInsured,
-      visits: [
-        {
-          id: `V-${randomNum}-1`,
-          date: formatDate(new Date().toISOString().slice(0, 10)),
-          doctor: "Dr. Rohan Mehra",
-          department: "General Medicine",
-          notes: "Initial registration intake and general baseline health assessment.",
-          chiefComplaint: "New patient registration and baseline wellness check.",
-          diagnosis: "Routine general physical examination - healthy adult.",
-          vitals: {
-            bp: "120/80 mmHg",
-            hr: "72 bpm",
-            temp: "98.6°F",
-            spo2: "99%",
-            weight: "70 kg",
-            height: "170 cm",
-          },
-          treatmentPlan: "Baseline assessment complete. Schedule annual screening in 12 months.",
-          prescriptions: [],
-          labResults: [],
-          followUpDate: null,
-        },
-      ],
-      prescriptions: [],
-      invoices: [
-        {
-          id: `INV-${randomNum}-1`,
-          invoiceNumber: `INV-2026-${Math.floor(100 + Math.random() * 900)}`,
-          date: formatDate(new Date().toISOString().slice(0, 10)),
-          amount: 0,
-          status: "Paid",
-          description: "New Patient Registration & Record Setup",
-        },
-      ],
-    };
-
-    setPatients((prev) => [created, ...prev]);
-    setSelectedPatient(created);
-    setIsAddDialogOpen(false);
-
-    // Reset inputs
-    setNewPatient({
-      name: "",
-      dob: "",
-      gender: "",
-      phone: "",
-      address: "",
-      bloodGroup: "",
-      alternatePhone: "",
-      insuranceProvider: "",
-      isInsured: false,
-      email: "",
-    });
-    setShowAdditionalInfo(false);
-    setFormError(null);
+      // Reload patients list
+      const rows = await fetchPatients();
+      setPatients(rows.map(mapRowToPatient));
+      setIsAddDialogOpen(false);
+      setNewPatient({
+        name: "",
+        dob: "",
+        gender: "",
+        phone: "",
+        address: "",
+        bloodGroup: "",
+        alternatePhone: "",
+        insuranceProvider: "",
+        isInsured: false,
+        email: "",
+      });
+      setShowAdditionalInfo(false);
+    } catch {
+      setFormError("Failed to create patient. Please try again.");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -1839,7 +442,7 @@ export default function PatientsPage() {
               variant="secondary"
               className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs"
             >
-              {filteredPatients.length} {filteredPatients.length === 1 ? "Patient" : "Patients"}
+              {patients.length} {patients.length === 1 ? "Patient" : "Patients"}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
@@ -1881,133 +484,230 @@ export default function PatientsPage() {
         </div>
       </div>
 
-      {/* 2. Patient Table using shadcn Table */}
-      <Card className="border border-slate-200/90 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/80 dark:bg-slate-800/40">
-              <TableRow className="border-b border-slate-200 dark:border-slate-800">
-                <TableHead className="w-[300px] text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5 pl-6">
-                  Patient
-                </TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
-                  Phone
-                </TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
-                  Email
-                </TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
-                  Last Visit
-                </TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
-                  Outstanding Balance
-                </TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5 pr-6 text-right">
-                  Status
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPatients.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-44 text-center text-slate-500 dark:text-slate-400"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
-                        <Search className="size-6" />
-                      </div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        No patients matching &ldquo;{searchQuery}&rdquo;
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Try searching with another name, email address, or patient ID.
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSearchQuery("")}
-                        className="mt-2 text-xs"
-                      >
-                        Clear Search
-                      </Button>
-                    </div>
-                  </TableCell>
+      {/* Error Alert Banner */}
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400 text-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{loadError}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadPatientsData()}
+            className="border-red-200 hover:bg-red-100 text-red-700 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/50 text-xs h-8 cursor-pointer"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* 2. Patient Table / Empty State Card */}
+      {!isLoading && !loadError && patients.length === 0 ? (
+        <Card className="border border-slate-200/90 bg-white shadow-xs p-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-col items-center justify-center gap-3 max-w-md mx-auto">
+            <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
+              <User className="size-8" />
+            </div>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              No patients yet
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              No patients yet. Add your first patient using the button above.
+            </p>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="mt-2 h-9 gap-1.5 bg-blue-600 font-medium text-white hover:bg-blue-700 shadow-sm cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Patient</span>
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="border border-slate-200/90 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50/80 dark:bg-slate-800/40">
+                <TableRow className="border-b border-slate-200 dark:border-slate-800">
+                  <TableHead className="w-[300px] text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5 pl-6">
+                    Patient
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
+                    Phone
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
+                    Email
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
+                    Last Visit
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5">
+                    Outstanding Balance
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 py-3.5 pr-6 text-right">
+                    Status
+                  </TableHead>
                 </TableRow>
-              ) : (
-                filteredPatients.map((patient) => {
-                  const isSelected = selectedPatient?.id === patient.id;
-                  return (
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
                     <TableRow
-                      key={patient.id}
-                      onClick={() => setSelectedPatient(patient)}
-                      className={cn(
-                        "cursor-pointer border-b border-slate-100 transition-colors dark:border-slate-800/60",
-                        isSelected
-                          ? "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/40 dark:hover:bg-blue-950/60"
-                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
-                      )}
+                      key={`skeleton-${idx}`}
+                      className="border-b border-slate-100 dark:border-slate-800/60"
                     >
-                      {/* Patient (Avatar + Name + ID) */}
                       <TableCell className="py-3 pl-6">
                         <div className="flex items-center gap-3">
-                          <Avatar className="size-9 ring-1 ring-slate-200 dark:ring-slate-700">
-                            <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-semibold text-xs">
-                              {getInitials(patient.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">
-                              {patient.name}
-                            </span>
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {patient.id}
-                            </span>
+                          <Skeleton className="size-9 rounded-full shrink-0" />
+                          <div className="space-y-1.5 flex-1">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-3 w-16" />
                           </div>
                         </div>
                       </TableCell>
-
-                      {/* Phone */}
-                      <TableCell className="py-3 font-mono text-xs text-slate-700 dark:text-slate-300">
-                        {patient.phone}
+                      <TableCell className="py-3">
+                        <Skeleton className="h-4 w-24" />
                       </TableCell>
-
-                      {/* Email */}
-                      <TableCell className="py-3 text-sm text-slate-600 dark:text-slate-400">
-                        {patient.email}
+                      <TableCell className="py-3">
+                        <Skeleton className="h-4 w-32" />
                       </TableCell>
-
-                      {/* Last Visit */}
-                      <TableCell className="py-3 text-sm text-slate-700 dark:text-slate-300">
-                        {formatDate(patient.lastVisit)}
+                      <TableCell className="py-3">
+                        <Skeleton className="h-4 w-20" />
                       </TableCell>
-
-                      {/* Outstanding Balance */}
-                      <TableCell className="py-3 text-sm">
-                        {patient.balance > 0 ? (
-                          <span className="font-semibold text-rose-600 dark:text-rose-400">
-                            {formatCurrency(patient.balance)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {formatCurrency(0)}
-                          </span>
-                        )}
+                      <TableCell className="py-3">
+                        <Skeleton className="h-4 w-16" />
                       </TableCell>
-
-                      {/* Status Badge */}
                       <TableCell className="py-3 pr-6 text-right">
-                        <PatientStatusBadge status={patient.status} />
+                        <div className="flex justify-end">
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                        </div>
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                  ))
+                ) : loadError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-44 text-center text-slate-500 dark:text-slate-400"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <AlertCircle className="size-8 text-red-500" />
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                          {loadError}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadPatientsData()}
+                          className="mt-2 text-xs"
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredPatients.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-44 text-center text-slate-500 dark:text-slate-400"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
+                          <Search className="size-6" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          No patients matching &ldquo;{searchQuery}&rdquo;
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Try searching with another name, email address, or patient ID.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSearchQuery("")}
+                          className="mt-2 text-xs"
+                        >
+                          Clear Search
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPatients.map((patient) => {
+                    const isSelected = selectedPatient?.id === patient.id;
+                    return (
+                      <TableRow
+                        key={patient.id}
+                        onClick={() => setSelectedPatient(patient)}
+                        className={cn(
+                          "cursor-pointer border-b border-slate-100 transition-colors dark:border-slate-800/60",
+                          isSelected
+                            ? "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/40 dark:hover:bg-blue-950/60"
+                            : "hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
+                        )}
+                      >
+                        {/* Patient (Avatar + Name + ID) */}
+                        <TableCell className="py-3 pl-6">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="size-9 ring-1 ring-slate-200 dark:ring-slate-700">
+                              <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-semibold text-xs">
+                                {getInitials(patient.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">
+                                {patient.name}
+                              </span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {patient.id}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Phone */}
+                        <TableCell className="py-3 font-mono text-xs text-slate-700 dark:text-slate-300">
+                          {patient.phone || "—"}
+                        </TableCell>
+
+                        {/* Email */}
+                        <TableCell className="py-3 text-sm text-slate-600 dark:text-slate-400">
+                          {patient.email || "—"}
+                        </TableCell>
+
+                        {/* Last Visit */}
+                        <TableCell className="py-3 text-sm text-slate-700 dark:text-slate-300">
+                          {formatDate(patient.lastVisit)}
+                        </TableCell>
+
+                        {/* Outstanding Balance */}
+                        <TableCell className="py-3 text-sm">
+                          {patient.balance > 0 ? (
+                            <span className="font-semibold text-rose-600 dark:text-rose-400">
+                              {formatCurrency(patient.balance)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 dark:text-slate-400">
+                              {formatCurrency(0)}
+                            </span>
+                          )}
+                        </TableCell>
+
+                        {/* Status Badge */}
+                        <TableCell className="py-3 pr-6 text-right">
+                          <PatientStatusBadge status={patient.status} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
 
       {/* 3. Patient Detail Sheet (shadcn Sheet, opening from right, ~500px wide) */}
       <Sheet
@@ -2113,17 +813,21 @@ export default function PatientsPage() {
                           Linked Clinics
                         </h3>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPatient.clinics.map((clinic) => (
-                          <Badge
-                            key={clinic}
-                            variant="secondary"
-                            className="border border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-800/60 dark:bg-teal-950/40 dark:text-teal-300 px-3 py-1 text-xs font-medium"
-                          >
-                            {clinic}
-                          </Badge>
-                        ))}
-                      </div>
+                      {selectedPatient.clinics.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No linked clinics</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedPatient.clinics.map((clinic) => (
+                            <Badge
+                              key={clinic}
+                              variant="secondary"
+                              className="border border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-800/60 dark:bg-teal-950/40 dark:text-teal-300 px-3 py-1 text-xs font-medium"
+                            >
+                              {clinic}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <Separator className="bg-slate-100 dark:bg-slate-800" />
@@ -2190,11 +894,15 @@ export default function PatientsPage() {
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         Tags & Classification
                       </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPatient.tags.map((tag, idx) => (
-                          <TagBadge key={idx} tag={tag} />
-                        ))}
-                      </div>
+                      {selectedPatient.tags.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No tags assigned</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedPatient.tags.map((tag, idx) => (
+                            <TagBadge key={idx} tag={tag} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
 
@@ -2207,40 +915,46 @@ export default function PatientsPage() {
                       <span className="text-xs text-muted-foreground">Most recent first</span>
                     </div>
 
-                    {selectedPatient.visits.map((visit) => (
-                      <Card
-                        key={visit.id}
-                        onClick={() => setSelectedVisit(visit)}
-                        className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors"
-                      >
-                        <CardContent className="p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
-                              <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>{visit.date}</span>
+                    {selectedPatient.visits.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-muted-foreground">
+                        No visit history recorded yet.
+                      </div>
+                    ) : (
+                      selectedPatient.visits.map((visit) => (
+                        <Card
+                          key={visit.id}
+                          onClick={() => setSelectedVisit(visit)}
+                          className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors"
+                        >
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
+                                <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
+                                <span>{visit.date}</span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-medium border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-400"
+                              >
+                                {visit.department}
+                              </Badge>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] font-medium border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-400"
-                            >
-                              {visit.department}
-                            </Badge>
-                          </div>
 
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                            <User className="size-3.5 text-slate-400" />
-                            <span>Physician: <strong className="text-slate-800 dark:text-slate-200">{visit.doctor}</strong></span>
-                          </div>
+                            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                              <User className="size-3.5 text-slate-400" />
+                              <span>Physician: <strong className="text-slate-800 dark:text-slate-200">{visit.doctor}</strong></span>
+                            </div>
 
-                          <div className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-700 border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300 leading-relaxed">
-                            <span className="font-semibold text-slate-900 dark:text-slate-100 block mb-0.5">
-                              Clinical Summary:
-                            </span>
-                            {visit.notes}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            <div className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-700 border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300 leading-relaxed">
+                              <span className="font-semibold text-slate-900 dark:text-slate-100 block mb-0.5">
+                                Clinical Summary:
+                              </span>
+                              {visit.notes}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
                   </TabsContent>
 
                   {/* 3. Prescriptions Tab Content: List of 2 prescriptions (medication, dosage, date) */}
@@ -2371,33 +1085,39 @@ export default function PatientsPage() {
                         <span className="text-xs text-muted-foreground">All time</span>
                       </div>
 
-                      {selectedPatient.invoices.map((inv) => (
-                        <Card
-                          key={inv.id}
-                          className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900"
-                        >
-                          <CardContent className="p-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
-                                <FileText className="size-3.5 text-blue-600 dark:text-blue-400" />
-                                {inv.invoiceNumber}
+                      {selectedPatient.invoices.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-muted-foreground">
+                          No invoices recorded yet.
+                        </div>
+                      ) : (
+                        selectedPatient.invoices.map((inv) => (
+                          <Card
+                            key={inv.id}
+                            className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900"
+                          >
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
+                                  <FileText className="size-3.5 text-blue-600 dark:text-blue-400" />
+                                  {inv.invoiceNumber}
+                                </div>
+                                <InvoiceStatusBadge status={inv.status} />
                               </div>
-                              <InvoiceStatusBadge status={inv.status} />
-                            </div>
 
-                            <p className="text-xs text-slate-700 dark:text-slate-300">
-                              {inv.description}
-                            </p>
+                              <p className="text-xs text-slate-700 dark:text-slate-300">
+                                {inv.description}
+                              </p>
 
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                              <span className="text-slate-400 text-[11px]">{inv.date}</span>
-                              <span className="font-bold text-slate-900 dark:text-slate-100">
-                                {formatCurrency(inv.amount)}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                                <span className="text-slate-400 text-[11px]">{inv.date}</span>
+                                <span className="font-bold text-slate-900 dark:text-slate-100">
+                                  {formatCurrency(inv.amount)}
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>
@@ -2761,6 +1481,7 @@ export default function PatientsPage() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={isCreating}
                 onClick={() => setIsAddDialogOpen(false)}
                 className="text-xs"
               >
@@ -2768,9 +1489,10 @@ export default function PatientsPage() {
               </Button>
               <Button
                 type="submit"
+                disabled={isCreating}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs cursor-pointer"
               >
-                Create Patient
+                {isCreating ? "Creating..." : "Create Patient"}
               </Button>
             </DialogFooter>
           </form>

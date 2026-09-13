@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { fetchDashboardStats } from "@/lib/db/staff";
 import {
   Dialog,
   DialogContent,
@@ -267,6 +269,38 @@ export default function DashboardPage() {
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    pendingInvoices: 0,
+    outstandingAmount: 0,
+    newPatientsThisMonth: 0,
+    staffCount: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      try {
+        setStatsLoading(true);
+        const data = await fetchDashboardStats();
+        if (isMounted) {
+          setStats(data);
+        }
+      } catch {
+        // Catch errors silently (keep showing 0)
+      } finally {
+        if (isMounted) {
+          setStatsLoading(false);
+        }
+      }
+    }
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Form state for adding patient
   const [newPatientName, setNewPatientName] = useState("");
   const [newPatientDob, setNewPatientDob] = useState("");
@@ -503,7 +537,9 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold tracking-tight">12</div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {statsLoading ? <Skeleton className="h-8 w-16" /> : stats.todayAppointments}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               3 completed, 9 remaining
             </p>
@@ -521,9 +557,14 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold tracking-tight">5</div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {statsLoading ? <Skeleton className="h-8 w-16" /> : stats.pendingInvoices}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="font-semibold text-foreground">$2,450</span> outstanding
+              <span className="font-semibold text-foreground">
+                {statsLoading ? "..." : "₹" + stats.outstandingAmount.toLocaleString("en-IN")}
+              </span>{" "}
+              outstanding
             </p>
           </CardContent>
         </Card>
@@ -539,7 +580,9 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold tracking-tight">23</div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {statsLoading ? <Skeleton className="h-8 w-16" /> : stats.newPatientsThisMonth}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               <span className="font-medium text-emerald-600 dark:text-emerald-400">+18%</span> vs last month
             </p>

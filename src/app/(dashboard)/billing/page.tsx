@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
+import {
+  fetchInvoices,
+  createInvoice,
+  recordPayment,
+  type InvoiceWithPatient,
+} from "@/lib/db/invoices";
 import {
   Card,
   CardContent,
@@ -41,6 +49,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp,
@@ -60,8 +69,8 @@ import {
   Wallet,
   Building2,
   Percent,
-  FileText,
   IndianRupee,
+  RotateCcw,
 } from "lucide-react";
 
 export type InvoiceStatus = "paid" | "pending" | "partial";
@@ -81,115 +90,6 @@ export interface Invoice {
   method: string;
   notes?: string;
 }
-
-const INITIAL_INVOICES: Invoice[] = [
-  {
-    id: "INV-001",
-    patient: "Eleanor Vance",
-    date: "2026-09-10",
-    service: "Comprehensive Health Checkup",
-    subtotal: 2400,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 2400,
-    paid: 2400,
-    status: "paid",
-    method: "Card",
-  },
-  {
-    id: "INV-002",
-    patient: "Marcus Brody",
-    date: "2026-09-08",
-    service: "Orthopedic Specialist Evaluation",
-    subtotal: 1800,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 1800,
-    paid: 0,
-    status: "pending",
-    method: "",
-  },
-  {
-    id: "INV-003",
-    patient: "Sarah Jenkins",
-    date: "2026-09-05",
-    service: "Follow-up Consultation",
-    subtotal: 3200,
-    discount_percent: 10,
-    discount_amount: 320,
-    amount: 2880,
-    paid: 1440,
-    status: "partial",
-    method: "UPI",
-    notes: "Follow-up visit 10% discount",
-  },
-  {
-    id: "INV-004",
-    patient: "David Alvarez",
-    date: "2026-09-12",
-    service: "Routine Blood Work & Urinalysis",
-    subtotal: 950,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 950,
-    paid: 950,
-    status: "paid",
-    method: "Cash",
-  },
-  {
-    id: "INV-005",
-    patient: "Amanda Hayes",
-    date: "2026-09-11",
-    service: "Cardiology Screening & ECG",
-    subtotal: 1500,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 1500,
-    paid: 0,
-    status: "pending",
-    method: "",
-  },
-  {
-    id: "INV-006",
-    patient: "Robert Chen",
-    date: "2026-09-09",
-    service: "Dermatology Skin Biopsy",
-    subtotal: 2100,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 2100,
-    paid: 2100,
-    status: "paid",
-    method: "Bank Transfer",
-  },
-  {
-    id: "INV-007",
-    patient: "Priya Sharma",
-    date: "2026-09-07",
-    service: "Dental Scaling & Polishing",
-    subtotal: 1000,
-    discount_percent: 20,
-    discount_amount: 200,
-    amount: 800,
-    paid: 400,
-    status: "partial",
-    method: "Cash",
-    notes: "Flat ₹200 clinic voucher discount applied",
-  },
-  {
-    id: "INV-008",
-    patient: "James Wilson",
-    date: "2026-09-06",
-    service: "MRI Brain & Neurological Scan",
-    subtotal: 4500,
-    discount_percent: 0,
-    discount_amount: 0,
-    amount: 4500,
-    paid: 0,
-    status: "pending",
-    method: "",
-  },
-];
 
 function formatCurrency(amount: number, fractionDigits = 0): string {
   return new Intl.NumberFormat("en-IN", {
@@ -260,7 +160,11 @@ function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
 }
 
 export default function BillingPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
+  const { staffProfile } = useAuth();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -271,6 +175,7 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("Card");
   const [paymentNote, setPaymentNote] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [isPaymentSaving, setIsPaymentSaving] = useState(false);
 
   // View Invoice Modal state
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
@@ -278,13 +183,10 @@ export default function BillingPage() {
 
   // Create Invoice Modal state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newPatientName, setNewPatientName] = useState("");
-  const [newService, setNewService] = useState("");
+  const [patientIdInput, setPatientIdInput] = useState("");
   const [newSubtotal, setNewSubtotal] = useState("");
-  const [newDate, setNewDate] = useState("2026-09-13");
-  const [newStatus, setNewStatus] = useState<InvoiceStatus>("pending");
-  const [newPaymentMethod, setNewPaymentMethod] = useState("Card");
   const [newNotes, setNewNotes] = useState("");
+  const [isCreateSaving, setIsCreateSaving] = useState(false);
 
   // Discount options inside Create Invoice Dialog
   const [applyDiscount, setApplyDiscount] = useState(false);
@@ -294,6 +196,37 @@ export default function BillingPage() {
 
   // Success Notification banner state
   const [notification, setNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadInvoices();
+  }, []);
+
+  async function loadInvoices() {
+    try {
+      setIsLoading(true);
+      setLoadError(null);
+      const rows: InvoiceWithPatient[] = await fetchInvoices();
+      const mapped: Invoice[] = rows.map((r) => ({
+        id: r.id,
+        patient: r.patient_name,
+        date: r.created_at.split("T")[0],
+        service: r.notes ?? undefined,
+        subtotal: r.subtotal ?? r.amount,
+        discount_percent: r.discount_percent ?? 0,
+        discount_amount: r.discount_amount ?? 0,
+        amount: r.amount,
+        paid: r.paid ?? 0,
+        status: r.status,
+        method: "",
+        notes: r.notes ?? "",
+      }));
+      setInvoices(mapped);
+    } catch {
+      setLoadError("Failed to load invoices.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Live calculation for Create Invoice dialog
   const parsedSubtotal = parseFloat(newSubtotal) || 0;
@@ -378,9 +311,9 @@ export default function BillingPage() {
   };
 
   // Handle submit Record Payment
-  const handleRecordPaymentSubmit = (e: React.FormEvent) => {
+  async function handleRecordPaymentSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedInvoice) return;
+    if (!selectedInvoice || !paymentAmount) return;
 
     const parsedAmount = parseFloat(paymentAmount);
     const remaining = selectedInvoice.amount - selectedInvoice.paid;
@@ -395,30 +328,31 @@ export default function BillingPage() {
       return;
     }
 
-    const newPaid = selectedInvoice.paid + parsedAmount;
-    const newStatus: InvoiceStatus = newPaid >= selectedInvoice.amount ? "paid" : "partial";
+    setIsPaymentSaving(true);
+    setPaymentError("");
 
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === selectedInvoice.id
-          ? {
-              ...inv,
-              paid: newPaid,
-              status: newStatus,
-              method: paymentMethod || inv.method,
-            }
-          : inv
-      )
-    );
-
-    setPaymentSheetOpen(false);
-    setNotification(
-      `Payment of ${formatCurrency(parsedAmount)} recorded successfully for ${selectedInvoice.id} (${selectedInvoice.patient}).`
-    );
-    setTimeout(() => {
-      setNotification(null);
-    }, 4500);
-  };
+    try {
+      await recordPayment({
+        invoice_id: selectedInvoice.id,
+        amount: parsedAmount,
+        method: paymentMethod,
+        staff_id: staffProfile?.id ?? "",
+      });
+      await loadInvoices(); // Refresh list
+      setPaymentSheetOpen(false);
+      setSelectedInvoice(null);
+      setNotification(
+        `Payment of ${formatCurrency(parsedAmount)} recorded successfully for ${selectedInvoice.patient}.`
+      );
+      setTimeout(() => {
+        setNotification(null);
+      }, 4500);
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to record payment.");
+    } finally {
+      setIsPaymentSaving(false);
+    }
+  }
 
   // Handle View Invoice
   const handleViewInvoice = (invoice: Invoice) => {
@@ -428,12 +362,8 @@ export default function BillingPage() {
 
   // Reset Create Invoice form
   const resetCreateForm = () => {
-    setNewPatientName("");
-    setNewService("");
+    setPatientIdInput("");
     setNewSubtotal("");
-    setNewDate("2026-09-13");
-    setNewStatus("pending");
-    setNewPaymentMethod("Card");
     setNewNotes("");
     setApplyDiscount(false);
     setDiscountType("percentage");
@@ -442,10 +372,10 @@ export default function BillingPage() {
   };
 
   // Handle Create Invoice Submit
-  const handleCreateInvoiceSubmit = (e: React.FormEvent) => {
+  async function handleCreateInvoiceSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPatientName.trim()) {
-      setCreateError("Patient name is required.");
+    if (!patientIdInput.trim()) {
+      setCreateError("Patient ID is required.");
       return;
     }
 
@@ -483,39 +413,72 @@ export default function BillingPage() {
     }
 
     const finalAmount = Math.max(0, Math.round((subtotal - finalDiscountAmount) * 100) / 100);
-    const nextIdNumber = invoices.length + 1;
-    const nextId = `INV-${String(nextIdNumber).padStart(3, "0")}`;
 
-    const paidAmount = newStatus === "paid" ? finalAmount : 0;
-    const finalMethod = newStatus === "paid" ? newPaymentMethod || "Card" : "";
+    setIsCreateSaving(true);
+    setCreateError("");
 
-    const newInvoice: Invoice = {
-      id: nextId,
-      patient: newPatientName.trim(),
-      service: newService.trim() || "Consultation",
-      date: newDate || "2026-09-13",
-      subtotal: subtotal,
-      discount_percent: finalDiscountPercent,
-      discount_amount: finalDiscountAmount,
-      amount: finalAmount,
-      paid: paidAmount,
-      status: newStatus,
-      method: finalMethod,
-      notes: newNotes.trim() || undefined,
-    };
+    try {
+      // Look up clinic_patient_link_id: if user entered patient ID, find corresponding link ID
+      let linkId = patientIdInput.trim();
+      const { data: linkData } = await supabase
+        .from("clinic_patient_links")
+        .select("id")
+        .eq("patient_id", linkId)
+        .maybeSingle();
 
-    setInvoices((prev) => [newInvoice, ...prev]);
-    setIsCreateDialogOpen(false);
-    resetCreateForm();
+      if (linkData?.id) {
+        linkId = linkData.id;
+      }
 
-    setNotification(`Invoice ${nextId} created successfully for ${newInvoice.patient}.`);
-    setTimeout(() => {
-      setNotification(null);
-    }, 4500);
-  };
+      await createInvoice({
+        clinic_patient_link_id: linkId,
+        subtotal: subtotal,
+        discount_percent: finalDiscountPercent,
+        discount_amount: finalDiscountAmount,
+        amount: finalAmount,
+        notes: newNotes.trim() || undefined,
+      });
+
+      await loadInvoices(); // Refresh list
+      setIsCreateDialogOpen(false);
+      resetCreateForm();
+
+      setNotification("Invoice created successfully.");
+      setTimeout(() => {
+        setNotification(null);
+      }, 4500);
+    } catch (err) {
+      setCreateError(
+        err instanceof Error
+          ? err.message
+          : "Failed to create invoice. Please check the Patient ID."
+      );
+    } finally {
+      setIsCreateSaving(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-12">
+      {/* Error Alert Banner with Retry */}
+      {loadError && (
+        <div className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-xs dark:border-rose-900/50 dark:bg-rose-950/50 dark:text-rose-300">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            <span>{loadError}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadInvoices()}
+            className="h-7 border-rose-200 bg-white px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 hover:text-rose-900 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950 cursor-pointer gap-1.5"
+          >
+            <RotateCcw className="size-3" />
+            <span>Retry</span>
+          </Button>
+        </div>
+      )}
+
       {/* Success Notification Alert */}
       {notification && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-xs dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
@@ -647,9 +610,13 @@ export default function BillingPage() {
               <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Total Revenue Billed
               </CardTitle>
-              <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {formatCurrency(summaryStats.totalRevenue)}
-              </h3>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  {formatCurrency(summaryStats.totalRevenue)}
+                </h3>
+              )}
             </div>
             <div className="flex size-10 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-400">
               <TrendingUp className="size-5" />
@@ -673,9 +640,13 @@ export default function BillingPage() {
               <CardTitle className="text-xs font-medium text-amber-900/80 dark:text-amber-300/80">
                 Outstanding Balance
               </CardTitle>
-              <h3 className="text-2xl font-bold tracking-tight text-amber-700 dark:text-amber-400">
-                {formatCurrency(summaryStats.totalOutstanding)}
-              </h3>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <h3 className="text-2xl font-bold tracking-tight text-amber-700 dark:text-amber-400">
+                  {formatCurrency(summaryStats.totalOutstanding)}
+                </h3>
+              )}
             </div>
             <div className="flex size-10 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
               <IndianRupee className="size-5" />
@@ -696,9 +667,13 @@ export default function BillingPage() {
               <CardTitle className="text-xs font-medium text-emerald-900/80 dark:text-emerald-300/80">
                 Paid Collections
               </CardTitle>
-              <h3 className="text-2xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
-                {formatCurrency(summaryStats.totalPaid)}
-              </h3>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <h3 className="text-2xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
+                  {formatCurrency(summaryStats.totalPaid)}
+                </h3>
+              )}
             </div>
             <div className="flex size-10 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
               <Receipt className="size-5" />
@@ -724,9 +699,13 @@ export default function BillingPage() {
               <CardTitle className="text-xs font-medium text-rose-900/80 dark:text-rose-300/80">
                 Awaiting Payment
               </CardTitle>
-              <h3 className="text-2xl font-bold tracking-tight text-rose-700 dark:text-rose-400">
-                {summaryStats.overdueCount} invoices
-              </h3>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <h3 className="text-2xl font-bold tracking-tight text-rose-700 dark:text-rose-400">
+                  {summaryStats.overdueCount} invoices
+                </h3>
+              )}
             </div>
             <div className="flex size-10 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-400">
               <AlertCircle className="size-5" />
@@ -765,7 +744,7 @@ export default function BillingPage() {
             <Table>
               <TableHeader className="bg-slate-50/80 dark:bg-slate-800/50">
                 <TableRow className="border-b border-slate-200 dark:border-slate-800">
-                  <TableHead className="w-[140px] py-3.5 pl-6 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  <TableHead className="w-[150px] py-3.5 pl-6 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Invoice #
                   </TableHead>
                   <TableHead className="py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -786,7 +765,48 @@ export default function BillingPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.length === 0 ? (
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <TableRow
+                      key={`skeleton-${idx}`}
+                      className="border-b border-slate-100 dark:border-slate-800/60"
+                    >
+                      <TableCell className="py-4 pl-6">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="size-7 rounded-md" />
+                          <Skeleton className="h-4 w-20" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-2.5">
+                          <Skeleton className="size-7 rounded-full" />
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-3 w-12" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </TableCell>
+                      <TableCell className="py-4 pr-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Skeleton className="h-8 w-16 rounded-md" />
+                          <Skeleton className="h-8 w-24 rounded-md" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredInvoices.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
@@ -795,23 +815,27 @@ export default function BillingPage() {
                       <div className="mx-auto flex max-w-sm flex-col items-center justify-center gap-2">
                         <Receipt className="size-8 text-slate-300 dark:text-slate-600" />
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          No invoices match your criteria
+                          {invoices.length === 0
+                            ? "No invoices yet. Create your first invoice using the button above."
+                            : "No invoices match your criteria"}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Try modifying your search or switching filter tabs.
-                        </p>
-                        {(searchQuery || filterTab !== "all") && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSearchQuery("");
-                              setFilterTab("all");
-                            }}
-                            className="mt-2 text-xs cursor-pointer"
-                          >
-                            Reset Filters
-                          </Button>
+                        {invoices.length > 0 && (searchQuery || filterTab !== "all") && (
+                          <>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Try modifying your search or switching filter tabs.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSearchQuery("");
+                                setFilterTab("all");
+                              }}
+                              className="mt-2 text-xs cursor-pointer"
+                            >
+                              Reset Filters
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -821,6 +845,10 @@ export default function BillingPage() {
                     const remaining = invoice.amount - invoice.paid;
                     const isPaid = invoice.status === "paid";
                     const hasDiscount = invoice.discount_percent > 0;
+                    const displayId =
+                      invoice.id.length > 12
+                        ? `INV-${invoice.id.slice(0, 8).toUpperCase()}`
+                        : invoice.id;
 
                     return (
                       <TableRow
@@ -833,11 +861,13 @@ export default function BillingPage() {
                             <span className="flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                               <Receipt className="size-3.5" />
                             </span>
-                            <span>{invoice.id}</span>
+                            <span title={invoice.id} className="truncate max-w-[110px]">
+                              {displayId}
+                            </span>
                           </div>
                         </TableCell>
 
-                        {/* Patient Name & Service */}
+                        {/* Patient Name */}
                         <TableCell className="py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2.5">
                             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[11px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -846,7 +876,7 @@ export default function BillingPage() {
                             <div className="flex flex-col">
                               <span>{invoice.patient}</span>
                               {invoice.service && (
-                                <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 line-clamp-1 max-w-[180px]">
                                   {invoice.service}
                                 </span>
                               )}
@@ -960,7 +990,7 @@ export default function BillingPage() {
               <SheetDescription className="text-xs text-slate-500 dark:text-slate-400">
                 Enter payment details to record an incoming transaction for invoice{" "}
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {selectedInvoice?.id}
+                  {selectedInvoice?.id.slice(0, 8)}
                 </span>
                 .
               </SheetDescription>
@@ -976,7 +1006,9 @@ export default function BillingPage() {
                         Invoice
                       </span>
                       <p className="font-mono text-sm font-bold text-slate-900 dark:text-white">
-                        {selectedInvoice.id}
+                        {selectedInvoice.id.length > 12
+                          ? `INV-${selectedInvoice.id.slice(0, 8).toUpperCase()}`
+                          : selectedInvoice.id}
                       </p>
                     </div>
                     <InvoiceStatusBadge status={selectedInvoice.status} />
@@ -1148,6 +1180,7 @@ export default function BillingPage() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={isPaymentSaving}
                 onClick={() => setPaymentSheetOpen(false)}
                 className="h-9 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 cursor-pointer"
               >
@@ -1156,10 +1189,20 @@ export default function BillingPage() {
               <Button
                 type="submit"
                 form="record-payment-form"
+                disabled={isPaymentSaving}
                 className="h-9 gap-1.5 bg-blue-600 px-4 text-xs font-medium text-white hover:bg-blue-700 shadow-xs cursor-pointer"
               >
-                <CheckCircle2 className="size-3.5" />
-                <span>Record Payment</span>
+                {isPaymentSaving ? (
+                  <>
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Recording...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-3.5" />
+                    <span>Record Payment</span>
+                  </>
+                )}
               </Button>
             </div>
           </SheetFooter>
@@ -1189,7 +1232,9 @@ export default function BillingPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-mono text-sm font-bold text-slate-900 dark:text-white">
-                    {viewInvoice.id}
+                    {viewInvoice.id.length > 12
+                      ? `INV-${viewInvoice.id.slice(0, 8).toUpperCase()}`
+                      : viewInvoice.id}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Issued on {formatDate(viewInvoice.date)}
@@ -1205,7 +1250,7 @@ export default function BillingPage() {
 
               <Separator />
 
-              {/* Breakdown as specified in Requirement 5 */}
+              {/* Breakdown */}
               <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-4 text-xs dark:border-slate-800 dark:bg-slate-800/50">
                 <div className="flex justify-between py-1">
                   <span className="text-slate-500 dark:text-slate-400">Service:</span>
@@ -1353,45 +1398,32 @@ export default function BillingPage() {
               </div>
             )}
 
-            {/* Patient Name */}
+            {/* Patient ID (UUID from Patients page) */}
             <div className="space-y-1.5">
-              <label
-                htmlFor="new-patient-name"
-                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Patient Name <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="patient-id-input"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Patient ID <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Copy from Patients page
+                </span>
+              </div>
+              {/* TODO: Replace with patient search dropdown when patients page shares state */}
               <div className="relative">
                 <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                 <Input
-                  id="new-patient-name"
+                  id="patient-id-input"
                   type="text"
-                  placeholder="e.g. Eleanor Vance"
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                  className="h-10 pl-9 text-sm border-slate-200 dark:border-slate-700"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Service Description */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="new-service"
-                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Service Description <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <FileText className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <Input
-                  id="new-service"
-                  type="text"
-                  placeholder="e.g. Follow-up Consultation"
-                  value={newService}
-                  onChange={(e) => setNewService(e.target.value)}
-                  className="h-10 pl-9 text-sm border-slate-200 dark:border-slate-700"
+                  placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+                  value={patientIdInput}
+                  onChange={(e) => {
+                    setPatientIdInput(e.target.value);
+                    if (createError) setCreateError("");
+                  }}
+                  className="h-10 pl-9 font-mono text-xs border-slate-200 dark:border-slate-700"
                   required
                 />
               </div>
@@ -1416,7 +1448,10 @@ export default function BillingPage() {
                   min="1"
                   placeholder="3200"
                   value={newSubtotal}
-                  onChange={(e) => setNewSubtotal(e.target.value)}
+                  onChange={(e) => {
+                    setNewSubtotal(e.target.value);
+                    if (createError) setCreateError("");
+                  }}
                   className="h-10 pl-8 text-sm border-slate-200 dark:border-slate-700"
                   required
                 />
@@ -1564,82 +1599,20 @@ export default function BillingPage() {
               )}
             </div>
 
-            {/* Invoice Date */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="new-date"
-                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Invoice Date
-              </label>
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <Input
-                  id="new-date"
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="h-10 pl-9 text-sm border-slate-200 dark:border-slate-700"
-                />
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="new-status"
-                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Initial Payment Status
-              </label>
-              <select
-                id="new-status"
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value as InvoiceStatus)}
-                className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                <option value="pending">Pending (Unpaid)</option>
-                <option value="paid">Paid (In Full)</option>
-              </select>
-            </div>
-
-            {/* Payment Method (if marked paid) */}
-            {newStatus === "paid" && (
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="new-method"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Payment Method
-                </label>
-                <select
-                  id="new-method"
-                  value={newPaymentMethod}
-                  onChange={(e) => setNewPaymentMethod(e.target.value)}
-                  className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-3 focus-visible:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                >
-                  <option value="Card">Card</option>
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-              </div>
-            )}
-
             {/* Notes (Optional) */}
             <div className="space-y-1.5">
               <label
                 htmlFor="new-notes"
                 className="text-xs font-semibold text-slate-700 dark:text-slate-300"
               >
-                Notes (Optional)
+                Notes / Service Description (Optional)
               </label>
               <textarea
                 id="new-notes"
                 rows={2}
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Add optional notes, concession justification, or instructions..."
+                placeholder="Add service description, notes, or justification..."
                 className="flex min-h-[64px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-2xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
             </div>
@@ -1650,6 +1623,7 @@ export default function BillingPage() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={isCreateSaving}
                 onClick={() => {
                   setIsCreateDialogOpen(false);
                   resetCreateForm();
@@ -1661,10 +1635,20 @@ export default function BillingPage() {
               <Button
                 type="submit"
                 form="create-invoice-form"
+                disabled={isCreateSaving}
                 className="h-9 gap-1.5 bg-blue-600 px-4 text-xs font-medium text-white hover:bg-blue-700 shadow-xs cursor-pointer"
               >
-                <Plus className="size-3.5" />
-                <span>Generate Invoice</span>
+                {isCreateSaving ? (
+                  <>
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-3.5" />
+                    <span>Generate Invoice</span>
+                  </>
+                )}
               </Button>
             </div>
           </DialogFooter>
