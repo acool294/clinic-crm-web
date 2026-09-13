@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { useState, useRef, useId, useEffect } from "react";
-import { saveVisitRecord } from "@/lib/db/staff";
+import {
+  saveVisitRecord,
+  fetchPatientVisits,
+  fetchPatientUpcomingAppointment,
+  uploadLabReport,
+} from "@/lib/db/staff";
 import { fetchPatients, type PatientRow } from "@/lib/db/patients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -529,6 +534,9 @@ interface PrescriptionRow {
   instructions: string;
 }
 
+type PatientVisit = Awaited<ReturnType<typeof fetchPatientVisits>>[number];
+type ActiveMedication = PatientVisit["prescriptions"][number];
+
 interface LabFileItem {
   id: string;
   name: string;
@@ -536,6 +544,7 @@ interface LabFileItem {
   type: string;
   reportType: string;
   url: string;
+  file?: File;
 }
 
 interface VitalsState {
@@ -593,7 +602,54 @@ export default function DiagnosisPage() {
     patientList.find((p) => p.id === selectedPatientId) ?? patientList[0] ?? null;
 
   const fallbackMock = MOCK_PATIENTS[0];
-  const currentPatient = fallbackMock;
+
+  // Sidebar states
+  const [previousVisits, setPreviousVisits] = useState<PatientVisit[]>([]);
+  const [activeMeds, setActiveMeds] = useState<ActiveMedication[]>([]);
+  const [upcomingAppt, setUpcomingAppt] = useState<{
+    date: string;
+    time: string;
+    doctor_name: string;
+  } | null>(null);
+  const [sidebarLoading, setSidebarLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selectedPatient) {
+      setPreviousVisits([]);
+      setActiveMeds([]);
+      setUpcomingAppt(null);
+      return;
+    }
+
+    async function loadSidebar() {
+      if (!selectedPatient) return;
+      setSidebarLoading(true);
+      try {
+        // 1. Fetch upcoming appointment
+        const appt = await fetchPatientUpcomingAppointment(selectedPatient.id);
+        setUpcomingAppt(appt);
+
+        // 2. Fetch past visits
+        const visits = await fetchPatientVisits(selectedPatient.id);
+        setPreviousVisits(visits);
+
+        // 3. Extract active meds from the most recent visit that has prescriptions
+        const recentVisitWithMeds = visits.find(
+          (v) => v.prescriptions && v.prescriptions.length > 0
+        );
+        if (recentVisitWithMeds) {
+          setActiveMeds(recentVisitWithMeds.prescriptions);
+        } else {
+          setActiveMeds([]);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSidebarLoading(false);
+      }
+    }
+    loadSidebar();
+  }, [selectedPatient]);
 
   // 2. Vitals state
   const [vitals, setVitals] = useState<VitalsState>(fallbackMock.defaultVitals);
@@ -630,24 +686,7 @@ export default function DiagnosisPage() {
   ]);
 
   // 5. Lab files state
-  const [labFiles, setLabFiles] = useState<LabFileItem[]>([
-    {
-      id: "lab-sample-1",
-      name: "Periapical_Digital_XRay_19.jpg",
-      size: 2450000,
-      type: "image/jpeg",
-      reportType: "X-Ray",
-      url: "#",
-    },
-    {
-      id: "lab-sample-2",
-      name: "Comprehensive_Metabolic_Panel.pdf",
-      size: 1180000,
-      type: "application/pdf",
-      reportType: "Blood Test",
-      url: "#",
-    },
-  ]);
+  const [labFiles, setLabFiles] = useState<LabFileItem[]>([]);
 
   // 6. Saving / UI interaction state
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -740,6 +779,7 @@ export default function DiagnosisPage() {
         type: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
         reportType: defaultType,
         url: objectUrl,
+        file: file,
       };
     });
 
@@ -773,6 +813,11 @@ export default function DiagnosisPage() {
 
   // Save handler
   const handleSave = async () => {
+    if (!selectedPatient) {
+      setSavedSuccess(false);
+      setWarning("Please select a patient before saving.");
+      return;
+    }
     if (!appointmentId) {
       setSavedSuccess(false);
       setWarning(
@@ -783,7 +828,7 @@ export default function DiagnosisPage() {
     setIsSaving(true);
     setWarning(null);
     try {
-      await saveVisitRecord({
+      const visit = await saveVisitRecord({
         appointment_id: appointmentId,
         notes: treatmentPlan,
         chief_complaint: chiefComplaint,
@@ -801,8 +846,39 @@ export default function DiagnosisPage() {
           .filter((p) => p.medication)
           .map((p) => ({ medication: p.medication, dosage: p.dosage })),
       });
+
+      // NEW: Upload lab files
+      if (labFiles.length > 0) {
+        for (const fileObj of labFiles) {
+          if (fileObj.file) {
+            await uploadLabReport(
+              fileObj.file,
+              selectedPatient.id,
+              visit.id,
+              fileObj.reportType
+            );
+          }
+        }
+      }
+
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+
+      // Refresh sidebar visits & active medications
+      try {
+        const visits = await fetchPatientVisits(selectedPatient.id);
+        setPreviousVisits(visits);
+        const recentVisitWithMeds = visits.find(
+          (v) => v.prescriptions && v.prescriptions.length > 0
+        );
+        if (recentVisitWithMeds) {
+          setActiveMeds(recentVisitWithMeds.prescriptions);
+        } else {
+          setActiveMeds([]);
+        }
+      } catch (refreshErr) {
+        console.error("Failed to refresh visits after save:", refreshErr);
+      }
     } catch {
       setWarning("Failed to save. Please try again.");
     } finally {
@@ -992,7 +1068,12 @@ export default function DiagnosisPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
             <Clock className="size-3 text-slate-400" />
-            <span>Last visit: {fallbackMock.lastVisit}</span>
+            <span>
+              Last visit:{" "}
+              {previousVisits.length > 0
+                ? previousVisits[0].created_at.split("T")[0]
+                : "None"}
+            </span>
           </div>
           <Badge
             variant="secondary"
@@ -1662,7 +1743,9 @@ export default function DiagnosisPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Last Visit</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {currentPatient.lastVisit}
+                    {previousVisits.length > 0
+                      ? previousVisits[0].created_at.split("T")[0]
+                      : "None"}
                   </span>
                 </div>
 
@@ -1672,17 +1755,9 @@ export default function DiagnosisPage() {
                     <AlertCircle className="size-3.5" />
                     Documented Allergies
                   </span>
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {currentPatient.allergies.map((allergy) => (
-                      <Badge
-                        key={allergy}
-                        variant="destructive"
-                        className="rounded-md px-2 py-0.5 text-[11px] font-medium"
-                      >
-                        {allergy}
-                      </Badge>
-                    ))}
-                  </div>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    No known allergies
+                  </p>
                 </div>
               </div>
 
@@ -1697,21 +1772,11 @@ export default function DiagnosisPage() {
                   </span>
                 </div>
                 <div className="mt-2 space-y-1">
-                  <p className="font-bold text-slate-900 dark:text-slate-100">
-                    {currentPatient.nextAppointment.type}
+                  <p className="font-medium text-slate-900 dark:text-slate-100">
+                    {upcomingAppt
+                      ? `${upcomingAppt.date} at ${upcomingAppt.time} with ${upcomingAppt.doctor_name}`
+                      : "No upcoming appointments"}
                   </p>
-                  <p className="text-slate-600 dark:text-slate-400">
-                    {currentPatient.nextAppointment.date} at{" "}
-                    {currentPatient.nextAppointment.time}
-                  </p>
-                  <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
-                    <span>{currentPatient.nextAppointment.doctor}</span>
-                    {currentPatient.nextAppointment.room && (
-                      <span className="font-medium text-blue-600 dark:text-blue-400">
-                        {currentPatient.nextAppointment.room}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1732,33 +1797,43 @@ export default function DiagnosisPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3.5 pt-4">
-              {currentPatient.previousVisits.slice(0, 3).map((visit, index) => (
-                <div
-                  key={visit.id}
-                  className={cn(
-                    "space-y-1 text-xs",
-                    index !== 0 && "border-t border-slate-100 pt-3 dark:border-slate-800"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {visit.date}
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="bg-slate-100 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                      {visit.department}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                    {visit.doctor}
-                  </p>
-                  <p className="line-clamp-2 text-slate-600 dark:text-slate-300">
-                    &quot;{visit.notes}&quot;
-                  </p>
+              {sidebarLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="size-5 animate-spin text-slate-400" />
                 </div>
-              ))}
+              ) : previousVisits.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-2">
+                  No previous visits recorded.
+                </p>
+              ) : (
+                previousVisits.slice(0, 3).map((visit, index) => (
+                  <div
+                    key={visit.id}
+                    className={cn(
+                      "space-y-1 text-xs",
+                      index !== 0 && "border-t border-slate-100 pt-3 dark:border-slate-800"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        {visit.created_at.split("T")[0]}
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className="bg-slate-100 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        {visit.department}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      {visit.doctor_name}
+                    </p>
+                    <p className="line-clamp-2 text-slate-600 dark:text-slate-300">
+                      &quot;{visit.notes?.substring(0, 50) ?? visit.chief_complaint?.substring(0, 50) ?? "No notes"}&quot;
+                    </p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -1778,17 +1853,21 @@ export default function DiagnosisPage() {
                   variant="secondary"
                   className="bg-teal-50 text-[10px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300"
                 >
-                  {currentPatient.activeMedications.length} Active
+                  {activeMeds.length} Active
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3 pt-4 text-xs">
-              {currentPatient.activeMedications.length === 0 ? (
-                <p className="text-center text-xs text-slate-400">
+              {sidebarLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="size-5 animate-spin text-slate-400" />
+                </div>
+              ) : activeMeds.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-2">
                   No active long-term medications recorded.
                 </p>
               ) : (
-                currentPatient.activeMedications.map((med) => (
+                activeMeds.map((med) => (
                   <div
                     key={med.id}
                     className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-900/50"
@@ -1804,11 +1883,8 @@ export default function DiagnosisPage() {
                         {med.dosage}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                      {med.frequency}
-                    </p>
                     <p className="mt-1 text-[10px] text-slate-400">
-                      Prescribed: {med.prescribedDate}
+                      Prescribed: {med.created_at.split("T")[0]}
                     </p>
                   </div>
                 ))

@@ -103,21 +103,98 @@ export async function saveVisitRecord(input: {
   return visit;
 }
 
-/** Fetch visit records for a patient (via their appointments) */
-export async function fetchPatientVisits(patientId: string): Promise<VisitRecordRow[]> {
+/** Fetch visit records for a patient (with prescriptions) */
+export async function fetchPatientVisits(patientId: string): Promise<(VisitRecordRow & { doctor_name: string; department: string; prescriptions: PrescriptionRow[] })[]> {
   const { data, error } = await supabase
     .from('visit_records')
     .select(`
       *,
       appointments!inner(
+        doctor_id,
+        appointment_type,
         clinic_patient_links!inner(patient_id)
-      )
+      ),
+      prescriptions(*)
     `)
     .eq('appointments.clinic_patient_links.patient_id', patientId)
     .order('created_at', { ascending: false });
 
   if (error) return [];
-  return (data ?? []) as VisitRecordRow[];
+  
+  // We need to fetch doctor names separately because of the complex join
+  const doctorIds = [...new Set((data ?? []).map(r => (r as any).appointments.doctor_id))];
+  const { data: doctors } = await supabase.from('staff_users').select('id, name').in('id', doctorIds);
+  const docMap = new Map((doctors ?? []).map(d => [d.id, d.name]));
+
+  return (data ?? []).map(r => {
+    const v = r as any;
+    return {
+      ...(v as VisitRecordRow),
+      doctor_name: docMap.get(v.appointments.doctor_id) || 'Unknown Doctor',
+      department: v.appointments.appointment_type || 'Consultation',
+      prescriptions: v.prescriptions || []
+    };
+  });
+}
+
+/** Fetch upcoming appointments for a patient */
+export async function fetchPatientUpcomingAppointment(patientId: string): Promise<{ date: string; time: string; doctor_name: string } | null> {
+  const today = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(`
+      scheduled_at,
+      staff_users!doctor_id(name),
+      clinic_patient_links!inner(patient_id)
+    `)
+    .eq('clinic_patient_links.patient_id', patientId)
+    .gte('scheduled_at', today)
+    .neq('status', 'cancelled')
+    .order('scheduled_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  const a = data as any;
+  return {
+    date: a.scheduled_at.split('T')[0],
+    time: a.scheduled_at.split('T')[1].substring(0,5),
+    doctor_name: a.staff_users?.name || 'Unknown'
+  };
+}
+
+/** Upload a lab report file to Supabase Storage and record it in the DB */
+export async function uploadLabReport(
+  file: File,
+  patientId: string,
+  visitRecordId: string,
+  reportType: string
+): Promise<void> {
+  const { data: staffData } = await supabase.from('staff_users').select('id, clinic_id').single();
+  if (!staffData) throw new Error('Could not get clinic');
+
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${patientId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+  
+  // Upload to storage
+  const { error: uploadError } = await supabase.storage
+    .from('lab_reports')
+    .upload(fileName, file, { cacheControl: '3600', upsert: false });
+    
+  if (uploadError) throw uploadError;
+
+  // Insert into lab_reports table
+  const { error: dbError } = await supabase.from('lab_reports').insert({
+    clinic_id: staffData.clinic_id,
+    visit_record_id: visitRecordId,
+    patient_id: patientId,
+    file_name: file.name,
+    file_url: fileName, // store path, we can get signed url later
+    report_type: reportType,
+    uploaded_by_staff_id: staffData.id
+  });
+
+  if (dbError) throw dbError;
 }
 
 /** Fetch clinic summary stats for dashboard */
