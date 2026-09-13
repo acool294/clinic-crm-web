@@ -20,6 +20,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -35,6 +42,25 @@ import {
   AlertCircle,
   RotateCcw,
 } from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+  addDays,
+  addWeeks,
+  addMonths,
+  subDays,
+  subWeeks,
+  subMonths,
+  isToday,
+  getHours,
+  getMinutes,
+} from "date-fns";
 
 export type AppointmentType = "Consultation" | "Follow-up" | "Lab Review";
 
@@ -51,100 +77,15 @@ export type CalendarView = "day" | "week" | "month";
 export interface Appointment {
   id: string;
   patient: string;
-  time: string; // "HH:MM" in 24h format
+  date: string; // 'YYYY-MM-DD' - the actual date
+  time: string; // 'HH:MM'
   duration: number; // in minutes
-  day: number; // 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday
   type: AppointmentType;
   doctor: string;
   status: AppointmentStatus;
 }
 
-const INITIAL_APPOINTMENTS: Appointment[] = [
-  {
-    id: "1",
-    patient: "Eleanor Vance",
-    time: "09:00",
-    duration: 45,
-    day: 1,
-    type: "Consultation",
-    doctor: "Dr. Smith",
-    status: "in_progress",
-  },
-  {
-    id: "2",
-    patient: "Marcus Brody",
-    time: "10:00",
-    duration: 30,
-    day: 1,
-    type: "Follow-up",
-    doctor: "Dr. Smith",
-    status: "checked_in",
-  },
-  {
-    id: "3",
-    patient: "Sarah Jenkins",
-    time: "14:00",
-    duration: 30,
-    day: 2,
-    type: "Lab Review",
-    doctor: "Dr. Patel",
-    status: "scheduled",
-  },
-  {
-    id: "4",
-    patient: "David Alvarez",
-    time: "11:00",
-    duration: 60,
-    day: 2,
-    type: "Consultation",
-    doctor: "Dr. Smith",
-    status: "scheduled",
-  },
-  {
-    id: "5",
-    patient: "Amanda Hayes",
-    time: "09:30",
-    duration: 30,
-    day: 3,
-    type: "Follow-up",
-    doctor: "Dr. Patel",
-    status: "confirmed",
-  },
-  {
-    id: "6",
-    patient: "Robert Chen",
-    time: "15:00",
-    duration: 45,
-    day: 3,
-    type: "Consultation",
-    doctor: "Dr. Smith",
-    status: "scheduled",
-  },
-  {
-    id: "7",
-    patient: "Priya Sharma",
-    time: "10:00",
-    duration: 30,
-    day: 4,
-    type: "Lab Review",
-    doctor: "Dr. Patel",
-    status: "confirmed",
-  },
-  {
-    id: "8",
-    patient: "James Wilson",
-    time: "13:00",
-    duration: 60,
-    day: 5,
-    type: "Consultation",
-    doctor: "Dr. Smith",
-    status: "scheduled",
-  },
-];
-
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 function formatHour(hour: number): string {
   const period = hour >= 12 ? "PM" : "AM";
@@ -188,7 +129,12 @@ function getTopOffset(time: string): number {
 }
 
 function getHeight(duration: number): number {
-  return Math.max(26, duration);
+  return Math.max(28, duration);
+}
+
+function parseDateString(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
 }
 
 function getCardColorClasses(type: AppointmentType): string {
@@ -214,6 +160,19 @@ function getTypeBadgeColor(type: AppointmentType): string {
       return "border-purple-200 bg-purple-50 text-purple-700 font-medium";
     default:
       return "border-slate-200 bg-slate-50 text-slate-700";
+  }
+}
+
+function getTypeDotColor(type: AppointmentType): string {
+  switch (type) {
+    case "Consultation":
+      return "bg-blue-600";
+    case "Follow-up":
+      return "bg-teal-600";
+    case "Lab Review":
+      return "bg-purple-600";
+    default:
+      return "bg-slate-500";
   }
 }
 
@@ -259,27 +218,295 @@ function renderStatusBadge(status: AppointmentStatus) {
   }
 }
 
-function getMondayOfWeek(d: Date): Date {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function getInitialAppointments(): Appointment[] {
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+  const mon = startOfWeek(today, { weekStartsOn: 1 });
+
+  const dMon = format(mon, "yyyy-MM-dd");
+  const dTue = format(addDays(mon, 1), "yyyy-MM-dd");
+  const dWed = format(addDays(mon, 2), "yyyy-MM-dd");
+  const dThu = format(addDays(mon, 3), "yyyy-MM-dd");
+  const dFri = format(addDays(mon, 4), "yyyy-MM-dd");
+  const dSat = format(addDays(mon, 5), "yyyy-MM-dd");
+
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const mDay4 = format(addDays(monthStart, 3), "yyyy-MM-dd");
+  const mDay10 = format(addDays(monthStart, 9), "yyyy-MM-dd");
+  const mDay18 = format(addDays(monthStart, 17), "yyyy-MM-dd");
+  const mDay24 = format(addDays(monthStart, 23), "yyyy-MM-dd");
+  const mNearEnd = format(subDays(monthEnd, 2), "yyyy-MM-dd");
+
+  const list: Appointment[] = [
+    // 4 appointments for today
+    {
+      id: "apt-today-1",
+      patient: "Eleanor Vance",
+      date: todayStr,
+      time: "09:00",
+      duration: 45,
+      type: "Consultation",
+      doctor: "Dr. Smith",
+      status: "in_progress",
+    },
+    {
+      id: "apt-today-2",
+      patient: "Marcus Brody",
+      date: todayStr,
+      time: "10:30",
+      duration: 30,
+      type: "Follow-up",
+      doctor: "Dr. Smith",
+      status: "checked_in",
+    },
+    {
+      id: "apt-today-3",
+      patient: "Sarah Jenkins",
+      date: todayStr,
+      time: "13:30",
+      duration: 45,
+      type: "Lab Review",
+      doctor: "Dr. Patel",
+      status: "scheduled",
+    },
+    {
+      id: "apt-today-4",
+      patient: "David Alvarez",
+      date: todayStr,
+      time: "15:00",
+      duration: 60,
+      type: "Consultation",
+      doctor: "Dr. Adams",
+      status: "confirmed",
+    },
+  ];
+
+  // Week appointments on other days of the current week
+  if (dMon !== todayStr) {
+    list.push(
+      {
+        id: "apt-mon-1",
+        patient: "Amanda Hayes",
+        date: dMon,
+        time: "09:30",
+        duration: 30,
+        type: "Follow-up",
+        doctor: "Dr. Patel",
+        status: "confirmed",
+      },
+      {
+        id: "apt-mon-2",
+        patient: "Arthur Pendelton",
+        date: dMon,
+        time: "11:30",
+        duration: 45,
+        type: "Consultation",
+        doctor: "Dr. Smith",
+        status: "scheduled",
+      }
+    );
+  }
+
+  if (dTue !== todayStr) {
+    list.push(
+      {
+        id: "apt-tue-1",
+        patient: "Robert Chen",
+        date: dTue,
+        time: "10:00",
+        duration: 60,
+        type: "Consultation",
+        doctor: "Dr. Smith",
+        status: "scheduled",
+      },
+      {
+        id: "apt-tue-2",
+        patient: "Elena Rostova",
+        date: dTue,
+        time: "14:00",
+        duration: 30,
+        type: "Lab Review",
+        doctor: "Dr. Patel",
+        status: "confirmed",
+      }
+    );
+  }
+
+  if (dWed !== todayStr) {
+    list.push(
+      {
+        id: "apt-wed-1",
+        patient: "Priya Sharma",
+        date: dWed,
+        time: "09:00",
+        duration: 30,
+        type: "Lab Review",
+        doctor: "Dr. Patel",
+        status: "confirmed",
+      },
+      {
+        id: "apt-wed-2",
+        patient: "Lucas Meyer",
+        date: dWed,
+        time: "13:00",
+        duration: 45,
+        type: "Consultation",
+        doctor: "Dr. Adams",
+        status: "scheduled",
+      }
+    );
+  }
+
+  if (dThu !== todayStr) {
+    list.push(
+      {
+        id: "apt-thu-1",
+        patient: "James Wilson",
+        date: dThu,
+        time: "11:00",
+        duration: 60,
+        type: "Consultation",
+        doctor: "Dr. Smith",
+        status: "scheduled",
+      },
+      {
+        id: "apt-thu-2",
+        patient: "Sophia Taylor",
+        date: dThu,
+        time: "15:30",
+        duration: 30,
+        type: "Follow-up",
+        doctor: "Dr. Adams",
+        status: "confirmed",
+      }
+    );
+  }
+
+  if (dFri !== todayStr) {
+    list.push(
+      {
+        id: "apt-fri-1",
+        patient: "Clara Oswald",
+        date: dFri,
+        time: "10:00",
+        duration: 45,
+        type: "Follow-up",
+        doctor: "Dr. Patel",
+        status: "scheduled",
+      },
+      {
+        id: "apt-fri-2",
+        patient: "Nathan Drake",
+        date: dFri,
+        time: "14:30",
+        duration: 30,
+        type: "Lab Review",
+        doctor: "Dr. Adams",
+        status: "confirmed",
+      }
+    );
+  }
+
+  if (dSat !== todayStr) {
+    list.push({
+      id: "apt-sat-1",
+      patient: "Zoe Saldana",
+      date: dSat,
+      time: "09:30",
+      duration: 60,
+      type: "Consultation",
+      doctor: "Dr. Smith",
+      status: "scheduled",
+    });
+  }
+
+  // Month appointments on other dates
+  const otherDates = [mDay4, mDay10, mDay18, mDay24, mNearEnd].filter(
+    (d) => d !== todayStr && d !== dMon && d !== dTue && d !== dWed && d !== dThu && d !== dFri && d !== dSat
+  );
+
+  if (otherDates.length > 0) {
+    list.push(
+      {
+        id: "apt-m-1",
+        patient: "Benjamin Sisko",
+        date: otherDates[0],
+        time: "09:00",
+        duration: 45,
+        type: "Consultation",
+        doctor: "Dr. Smith",
+        status: "scheduled",
+      },
+      {
+        id: "apt-m-2",
+        patient: "Kira Nerys",
+        date: otherDates[0],
+        time: "11:00",
+        duration: 30,
+        type: "Follow-up",
+        doctor: "Dr. Patel",
+        status: "confirmed",
+      },
+      {
+        id: "apt-m-3",
+        patient: "Jadzia Dax",
+        date: otherDates[0],
+        time: "14:00",
+        duration: 30,
+        type: "Lab Review",
+        doctor: "Dr. Patel",
+        status: "scheduled",
+      }
+    );
+  }
+
+  if (otherDates.length > 1) {
+    list.push(
+      {
+        id: "apt-m-4",
+        patient: "Miles O'Brien",
+        date: otherDates[1],
+        time: "10:30",
+        duration: 60,
+        type: "Consultation",
+        doctor: "Dr. Adams",
+        status: "scheduled",
+      },
+      {
+        id: "apt-m-5",
+        patient: "Keiko O'Brien",
+        date: otherDates[1],
+        time: "13:30",
+        duration: 30,
+        type: "Follow-up",
+        doctor: "Dr. Smith",
+        status: "confirmed",
+      }
+    );
+  }
+
+  if (otherDates.length > 2) {
+    list.push({
+      id: "apt-m-6",
+      patient: "Julian Bashir",
+      date: otherDates[2],
+      time: "11:00",
+      duration: 45,
+      type: "Lab Review",
+      doctor: "Dr. Patel",
+      status: "scheduled",
+    });
+  }
+
+  return list;
 }
 
-function isSameDay(d1: Date, d2: Date): boolean {
-  return (
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
-  );
-}
+const INITIAL_APPOINTMENTS: Appointment[] = getInitialAppointments();
 
 export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("week");
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(1); // For Day view
-  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
@@ -287,65 +514,105 @@ export default function CalendarPage() {
   const [isNewDialogOpen, setIsNewDialogOpen] = useState<boolean>(false);
   const [newPatient, setNewPatient] = useState<string>("");
   const [newDoctor, setNewDoctor] = useState<string>("Dr. Smith");
-  const [newDay, setNewDay] = useState<number>(1);
+  const [newDate, setNewDate] = useState<Date>(() => new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
   const [newTime, setNewTime] = useState<string>("09:00");
   const [newDuration, setNewDuration] = useState<number>(30);
   const [newType, setNewType] = useState<AppointmentType>("Consultation");
 
   // Reschedule Modal State
   const [isRescheduleOpen, setIsRescheduleOpen] = useState<boolean>(false);
-  const [rescheduleDay, setRescheduleDay] = useState<number>(1);
+  const [rescheduleDate, setRescheduleDate] = useState<Date>(() => new Date());
+  const [isRescheduleDatePickerOpen, setIsRescheduleDatePickerOpen] = useState<boolean>(false);
   const [rescheduleTime, setRescheduleTime] = useState<string>("09:00");
 
-  // Calculate week dates based on weekOffset
+  // Calculate week dates (Mon-Sat, 6 days) based on currentDate
   const weekDays = useMemo(() => {
-    const baseMonday = getMondayOfWeek(new Date());
-    baseMonday.setDate(baseMonday.getDate() + weekOffset * 7);
-
-    return DAY_SHORT.map((name, i) => {
-      const d = new Date(baseMonday);
-      d.setDate(baseMonday.getDate() + i);
+    const monday = startOfWeek(currentDate, { weekStartsOn: 1 });
+    return [0, 1, 2, 3, 4, 5].map((offset) => {
+      const d = addDays(monday, offset);
       return {
-        name,
-        fullName: DAY_NAMES[i],
         date: d,
-        dayIndex: i + 1,
+        dateStr: format(d, "yyyy-MM-dd"),
+        dayAbbrev: format(d, "EEE"),
+        dayName: format(d, "EEEE"),
+        dayNumber: format(d, "d"),
+        isToday: isToday(d),
       };
     });
-  }, [weekOffset]);
+  }, [currentDate]);
 
-  const weekRangeText = useMemo(() => {
-    if (weekDays.length === 0) return "";
-    const start = weekDays[0].date;
-    const end = weekDays[weekDays.length - 1].date;
+  // Calculate full month grid (7 columns Mon-Sun) for currentDate
+  const monthDays = useMemo(() => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: gridStart, end: gridEnd });
+  }, [currentDate]);
 
-    const startMonth = start.toLocaleString("en-US", { month: "short" });
-    const endMonth = end.toLocaleString("en-US", { month: "short" });
-    const year = end.getFullYear();
-
-    if (startMonth === endMonth) {
-      return `${startMonth} ${start.getDate()} – ${end.getDate()}, ${year}`;
+  // Header range / date text depending on view
+  const navigationTitle = useMemo(() => {
+    if (view === "day") {
+      return format(currentDate, "EEEE, MMMM d, yyyy");
     }
-    return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${year}`;
-  }, [weekDays]);
+    if (view === "week") {
+      if (weekDays.length === 0) return "";
+      const start = weekDays[0].date;
+      const end = weekDays[weekDays.length - 1].date;
+      const startMonth = format(start, "MMM");
+      const endMonth = format(end, "MMM");
+      const year = format(end, "yyyy");
 
-  const handlePreviousWeek = () => {
-    setWeekOffset((prev) => prev - 1);
+      if (startMonth === endMonth) {
+        return `${startMonth} ${format(start, "d")} – ${format(end, "d")}, ${year}`;
+      }
+      return `${startMonth} ${format(start, "d")} – ${endMonth} ${format(end, "d")}, ${year}`;
+    }
+    return format(currentDate, "MMMM yyyy");
+  }, [view, currentDate, weekDays]);
+
+  // Total appointments in currently viewed month
+  const monthAppointmentsCount = useMemo(() => {
+    return appointments.filter((apt) => isSameMonth(parseDateString(apt.date), currentDate)).length;
+  }, [appointments, currentDate]);
+
+  // Appointments for day view
+  const dayAppointments = useMemo(() => {
+    const selectedDateStr = format(currentDate, "yyyy-MM-dd");
+    return appointments.filter((apt) => apt.date === selectedDateStr);
+  }, [appointments, currentDate]);
+
+  // Current time offset for day and week indicators
+  const now = new Date();
+  const currentHour = getHours(now);
+  const currentMinute = getMinutes(now);
+  const currentTimeOffset = (currentHour - 8) * 60 + currentMinute;
+  const isCurrentDateToday = isToday(currentDate);
+  const showDayCurrentTime = isCurrentDateToday && currentTimeOffset >= 0 && currentTimeOffset <= 600;
+
+  const handlePrevious = () => {
+    if (view === "day") {
+      setCurrentDate((prev) => subDays(prev, 1));
+    } else if (view === "week") {
+      setCurrentDate((prev) => subWeeks(prev, 1));
+    } else {
+      setCurrentDate((prev) => subMonths(prev, 1));
+    }
   };
 
-  const handleNextWeek = () => {
-    setWeekOffset((prev) => prev + 1);
+  const handleNext = () => {
+    if (view === "day") {
+      setCurrentDate((prev) => addDays(prev, 1));
+    } else if (view === "week") {
+      setCurrentDate((prev) => addWeeks(prev, 1));
+    } else {
+      setCurrentDate((prev) => addMonths(prev, 1));
+    }
   };
 
   const handleToday = () => {
-    setWeekOffset(0);
-    const today = new Date().getDay();
-    // Monday is 1, Friday is 5
-    if (today >= 1 && today <= 5) {
-      setSelectedDayIndex(today);
-    } else {
-      setSelectedDayIndex(1);
-    }
+    setCurrentDate(new Date());
   };
 
   const handleCheckIn = () => {
@@ -378,7 +645,7 @@ export default function CalendarPage() {
 
   const openRescheduleModal = () => {
     if (!selectedAppointment) return;
-    setRescheduleDay(selectedAppointment.day);
+    setRescheduleDate(parseDateString(selectedAppointment.date));
     setRescheduleTime(selectedAppointment.time);
     setIsRescheduleOpen(true);
   };
@@ -389,7 +656,7 @@ export default function CalendarPage() {
 
     const updatedApt: Appointment = {
       ...selectedAppointment,
-      day: Number(rescheduleDay),
+      date: format(rescheduleDate, "yyyy-MM-dd"),
       time: rescheduleTime,
       status: "scheduled",
     };
@@ -408,9 +675,9 @@ export default function CalendarPage() {
     const newApt: Appointment = {
       id: String(Date.now()),
       patient: newPatient.trim(),
+      date: format(newDate, "yyyy-MM-dd"),
       time: newTime,
       duration: Number(newDuration),
-      day: Number(newDay),
       type: newType,
       doctor: newDoctor,
       status: "scheduled",
@@ -422,6 +689,7 @@ export default function CalendarPage() {
 
     // Reset Form
     setNewPatient("");
+    setNewDate(new Date());
     setNewTime("09:00");
     setNewDuration(30);
     setNewType("Consultation");
@@ -491,9 +759,15 @@ export default function CalendarPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={handlePreviousWeek}
+              onClick={handlePrevious}
               className="size-7 cursor-pointer text-slate-600 hover:text-slate-900"
-              aria-label="Previous week"
+              aria-label={
+                view === "day"
+                  ? "Previous day"
+                  : view === "week"
+                  ? "Previous week"
+                  : "Previous month"
+              }
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -508,9 +782,15 @@ export default function CalendarPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={handleNextWeek}
+              onClick={handleNext}
               className="size-7 cursor-pointer text-slate-600 hover:text-slate-900"
-              aria-label="Next week"
+              aria-label={
+                view === "day"
+                  ? "Next day"
+                  : view === "week"
+                  ? "Next week"
+                  : "Next month"
+              }
             >
               <ChevronRight className="size-4" />
             </Button>
@@ -518,12 +798,15 @@ export default function CalendarPage() {
 
           <div className="flex items-center gap-2 px-2 text-sm font-semibold text-slate-800">
             <CalendarIcon className="size-4 text-slate-500" />
-            <span>{weekRangeText}</span>
+            <span>{navigationTitle}</span>
           </div>
 
           {/* New Appointment Button */}
           <Button
-            onClick={() => setIsNewDialogOpen(true)}
+            onClick={() => {
+              setNewDate(currentDate);
+              setIsNewDialogOpen(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm gap-1.5 cursor-pointer ml-auto sm:ml-0"
           >
             <Plus className="size-4" />
@@ -536,37 +819,61 @@ export default function CalendarPage() {
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Calendar Area */}
         <div className="flex-1 min-w-0 w-full">
+          {/* WEEK VIEW (6 Columns: Mon-Sat) */}
           {view === "week" && (
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
-              <div className="min-w-[760px]">
-                {/* Header Row: 6 Columns */}
-                <div className="grid grid-cols-6 border-b border-slate-200 bg-slate-50/70 select-none">
+              <div className="min-w-[840px]">
+                {/* Header Row: Time Column + 6 Day Columns (Mon-Sat) */}
+                <div className="grid grid-cols-[72px_repeat(6,1fr)] border-b border-slate-200 bg-slate-50/70 select-none">
                   <div className="p-3 text-center text-xs font-semibold text-slate-400 border-r border-slate-200 flex items-center justify-center">
                     <Clock className="size-4" />
                   </div>
                   {weekDays.map((day) => {
-                    const isToday = isSameDay(day.date, new Date());
+                    const count = appointments.filter(
+                      (apt) => apt.date === day.dateStr
+                    ).length;
+
                     return (
                       <div
-                        key={day.name}
+                        key={day.dateStr}
+                        onClick={() => {
+                          setCurrentDate(day.date);
+                          setView("day");
+                        }}
                         className={cn(
-                          "p-3 text-center border-r border-slate-200 last:border-r-0 transition-colors",
-                          isToday && "bg-blue-50/60"
+                          "p-2.5 text-center border-r border-slate-200 last:border-r-0 cursor-pointer transition-colors hover:bg-slate-100/70 group",
+                          day.isToday && "bg-blue-50/70 hover:bg-blue-100/60"
                         )}
+                        title={`Switch to Day view for ${day.dayName}, ${format(day.date, "MMM d")}`}
                       >
-                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          {day.name}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                            {day.dayAbbrev}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0 h-4 font-semibold",
+                              day.isToday
+                                ? "bg-blue-200/80 text-blue-800"
+                                : count > 0
+                                ? "bg-slate-200 text-slate-700"
+                                : "bg-slate-100 text-slate-400"
+                            )}
+                          >
+                            {count}
+                          </Badge>
                         </div>
                         <div className="mt-1 flex items-center justify-center">
                           <span
                             className={cn(
-                              "flex size-7 items-center justify-center rounded-full text-sm font-bold",
-                              isToday
+                              "flex size-7 items-center justify-center rounded-full text-sm font-bold transition-transform group-hover:scale-105",
+                              day.isToday
                                 ? "bg-blue-600 text-white shadow-xs"
                                 : "text-slate-800"
                             )}
                           >
-                            {day.date.getDate()}
+                            {day.dayNumber}
                           </span>
                         </div>
                       </div>
@@ -574,9 +881,9 @@ export default function CalendarPage() {
                   })}
                 </div>
 
-                {/* Calendar Body: CSS Grid with 6 columns */}
-                <div className="grid grid-cols-6 relative">
-                  {/* Left Column: Time slots 8:00 AM to 6:00 PM */}
+                {/* Calendar Body: CSS Grid with 1 time column + 6 day columns */}
+                <div className="grid grid-cols-[72px_repeat(6,1fr)] relative">
+                  {/* Left Column: Time slots 8:00 AM to 5:00 PM */}
                   <div className="border-r border-slate-200 bg-slate-50/20 select-none">
                     {HOURS.map((hour) => (
                       <div
@@ -590,16 +897,19 @@ export default function CalendarPage() {
                     ))}
                   </div>
 
-                  {/* 5 Day Columns (Mon-Fri) */}
-                  {[1, 2, 3, 4, 5].map((dayIndex) => {
+                  {/* 6 Day Columns (Mon-Sat) */}
+                  {weekDays.map((day) => {
                     const dayAppointments = appointments.filter(
-                      (apt) => apt.day === dayIndex
+                      (apt) => apt.date === day.dateStr
                     );
 
                     return (
                       <div
-                        key={dayIndex}
-                        className="relative border-r border-slate-200 last:border-r-0 h-[600px]"
+                        key={day.dateStr}
+                        className={cn(
+                          "relative border-r border-slate-200 last:border-r-0 h-[600px]",
+                          day.isToday && "bg-blue-50/30"
+                        )}
                       >
                         {/* 10 hour background slots */}
                         {HOURS.map((hour) => (
@@ -608,6 +918,16 @@ export default function CalendarPage() {
                             className="h-[60px] border-b border-slate-100 hover:bg-slate-50/40 transition-colors"
                           />
                         ))}
+
+                        {/* Red line indicator for current time if today */}
+                        {day.isToday && showDayCurrentTime && (
+                          <div
+                            className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
+                            style={{ top: `${currentTimeOffset}px` }}
+                          >
+                            <span className="absolute -left-1 -top-1 size-2 rounded-full bg-red-500" />
+                          </div>
+                        )}
 
                         {/* Absolutely positioned appointment cards */}
                         {dayAppointments.map((apt) => {
@@ -660,37 +980,63 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* DAY VIEW */}
+          {/* DAY VIEW (Hourly timeline 8AM-6PM, 60px/hour) */}
           {view === "day" && (
             <div className="flex flex-col gap-4">
-              {/* Day Selector Pills */}
+              {/* Day Selector Quick Pills (Mon-Sat of the week) */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {weekDays.map((day) => (
-                  <Button
-                    key={day.dayIndex}
-                    variant={selectedDayIndex === day.dayIndex ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedDayIndex(day.dayIndex)}
-                    className={cn(
-                      "cursor-pointer font-medium text-xs gap-1.5",
-                      selectedDayIndex === day.dayIndex && "bg-blue-600 text-white"
-                    )}
-                  >
-                    <span>{day.fullName}</span>
-                    <span className="opacity-80">({day.date.getDate()})</span>
-                  </Button>
-                ))}
+                {weekDays.map((day) => {
+                  const isSelected = isSameDay(day.date, currentDate);
+                  const count = appointments.filter(
+                    (apt) => apt.date === day.dateStr
+                  ).length;
+
+                  return (
+                    <Button
+                      key={day.dateStr}
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentDate(day.date)}
+                      className={cn(
+                        "cursor-pointer font-medium text-xs gap-1.5 transition-all",
+                        isSelected
+                          ? "bg-blue-600 text-white shadow-xs hover:bg-blue-700"
+                          : "text-slate-700 hover:bg-slate-100"
+                      )}
+                    >
+                      <span>{day.dayName}</span>
+                      <span className="opacity-80 font-normal">
+                        ({format(day.date, "MMM d")})
+                      </span>
+                      {count > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px] px-1 py-0 h-4 ml-0.5",
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-100 text-slate-600"
+                          )}
+                        >
+                          {count}
+                        </Badge>
+                      )}
+                    </Button>
+                  );
+                })}
               </div>
 
               {/* Single Day Detailed Calendar */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
-                <div className="min-w-[600px]">
+                <div className="min-w-[640px]">
+                  {/* Header: [DayName], [Month DD] — X appointments */}
                   <div className="grid grid-cols-[90px_1fr] border-b border-slate-200 bg-slate-50/70 p-3 select-none">
                     <div className="text-center text-xs font-semibold text-slate-400">
                       Time
                     </div>
                     <div className="text-sm font-semibold text-slate-800 px-3">
-                      {DAY_NAMES[selectedDayIndex - 1]} Schedule
+                      {format(currentDate, "EEEE, MMMM d")} — {dayAppointments.length}{" "}
+                      {dayAppointments.length === 1 ? "appointment" : "appointments"}
                     </div>
                   </div>
 
@@ -716,65 +1062,76 @@ export default function CalendarPage() {
                         />
                       ))}
 
-                      {appointments
-                        .filter((apt) => apt.day === selectedDayIndex)
-                        .map((apt) => {
-                          const top = getTopOffset(apt.time);
-                          const height = getHeight(apt.duration);
-                          const isSelected = selectedAppointment?.id === apt.id;
+                      {/* Current time red horizontal line */}
+                      {showDayCurrentTime && (
+                        <div
+                          className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
+                          style={{ top: `${currentTimeOffset}px` }}
+                        >
+                          <span className="absolute -left-1.5 -top-1.5 size-3 rounded-full bg-red-500" />
+                          <span className="absolute left-2 -top-5 text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 shadow-2xs">
+                            Current Time ({format(now, "h:mm a")})
+                          </span>
+                        </div>
+                      )}
 
-                          return (
-                            <div
-                              key={apt.id}
-                              onClick={() => setSelectedAppointment(apt)}
-                              style={{
-                                top: `${top}px`,
-                                height: `${height}px`,
-                              }}
-                              className={cn(
-                                "absolute left-3 right-3 rounded-lg p-2.5 cursor-pointer transition-all z-10 select-none overflow-hidden flex flex-row items-center justify-between border shadow-2xs",
-                                getCardColorClasses(apt.type),
-                                isSelected &&
-                                  "ring-2 ring-blue-600 shadow-md ring-offset-1 z-20",
-                                apt.status === "cancelled" &&
-                                  "opacity-50 grayscale-40"
-                              )}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="size-8 border border-white/50 bg-white/80 shrink-0">
-                                  <AvatarFallback className="text-xs font-semibold">
-                                    {getInitials(apt.patient)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-sm leading-tight text-slate-900 truncate">
-                                      {apt.patient}
-                                    </span>
-                                    {renderStatusBadge(apt.status)}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-xs opacity-80 mt-0.5">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="size-3" />
-                                      {getTimeRange(apt.time, apt.duration)}
-                                    </span>
-                                    <span>•</span>
-                                    <span className="flex items-center gap-1">
-                                      <Stethoscope className="size-3" />
-                                      {apt.doctor}
-                                    </span>
-                                  </div>
+                      {dayAppointments.map((apt) => {
+                        const top = getTopOffset(apt.time);
+                        const height = getHeight(apt.duration);
+                        const isSelected = selectedAppointment?.id === apt.id;
+
+                        return (
+                          <div
+                            key={apt.id}
+                            onClick={() => setSelectedAppointment(apt)}
+                            style={{
+                              top: `${top}px`,
+                              height: `${height}px`,
+                            }}
+                            className={cn(
+                              "absolute left-3 right-3 rounded-lg p-2.5 cursor-pointer transition-all z-10 select-none overflow-hidden flex flex-row items-center justify-between border shadow-2xs",
+                              getCardColorClasses(apt.type),
+                              isSelected &&
+                                "ring-2 ring-blue-600 shadow-md ring-offset-1 z-20",
+                              apt.status === "cancelled" &&
+                                "opacity-50 grayscale-40"
+                            )}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar className="size-8 border border-white/50 bg-white/80 shrink-0">
+                                <AvatarFallback className="text-xs font-semibold">
+                                  {getInitials(apt.patient)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm leading-tight text-slate-900 truncate">
+                                    {apt.patient}
+                                  </span>
+                                  {renderStatusBadge(apt.status)}
+                                </div>
+                                <div className="flex items-center gap-3 text-xs opacity-80 mt-0.5">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="size-3" />
+                                    {getTimeRange(apt.time, apt.duration)}
+                                  </span>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Stethoscope className="size-3" />
+                                    {apt.doctor}
+                                  </span>
                                 </div>
                               </div>
-                              <Badge
-                                variant="secondary"
-                                className={getTypeBadgeColor(apt.type)}
-                              >
-                                {apt.type}
-                              </Badge>
                             </div>
-                          );
-                        })}
+                            <Badge
+                              variant="secondary"
+                              className={getTypeBadgeColor(apt.type)}
+                            >
+                              {apt.type}
+                            </Badge>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -782,75 +1139,166 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* MONTH VIEW */}
+          {/* MONTH VIEW (7x5 or 7x6 Calendar Grid) */}
           {view === "month" && (
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <h3 className="text-base font-semibold text-slate-900">
-                    Monthly Overview
+                    {format(currentDate, "MMMM yyyy")} Overview
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Showing scheduled clinics and appointment counts across weeks.
+                    Showing scheduled clinics and appointment counts across the month. Click any date to open its timeline.
                   </p>
                 </div>
-                <Badge variant="outline" className="border-teal-200 bg-teal-50 text-teal-700">
-                  {appointments.length} Total Appointments
+                <Badge variant="outline" className="border-teal-200 bg-teal-50 text-teal-700 font-medium">
+                  {monthAppointmentsCount} Total Appointments
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-5 gap-3">
-                {weekDays.map((day) => {
-                  const dayApts = appointments.filter((a) => a.day === day.dayIndex);
+              {/* 7-column weekday headers (Mon-Sun) */}
+              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80 rounded-t-lg select-none text-center py-2 text-xs font-semibold text-slate-600">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((dayName) => (
+                  <div key={dayName} className="uppercase tracking-wider">
+                    {dayName}
+                  </div>
+                ))}
+              </div>
+
+              {/* Full Calendar Month Grid Cells */}
+              <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-b-lg overflow-hidden border-x border-b border-slate-200">
+                {monthDays.map((day) => {
+                  const dayStr = format(day, "yyyy-MM-dd");
+                  const dayApts = appointments.filter((a) => a.date === dayStr);
+                  const isCurrentMonth = isSameMonth(day, currentDate);
+                  const dayIsToday = isToday(day);
+
                   return (
-                    <Card
-                      key={day.dayIndex}
-                      className="border-slate-200 shadow-2xs hover:border-blue-300 transition-all cursor-pointer"
-                      onClick={() => {
-                        setSelectedDayIndex(day.dayIndex);
-                        setView("day");
-                      }}
-                    >
-                      <CardHeader className="p-3 pb-2 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-                        <span className="text-xs font-semibold text-slate-700">
-                          {day.fullName}
-                        </span>
-                        <span className="text-xs font-bold text-blue-600">
-                          {day.date.getDate()}
-                        </span>
-                      </CardHeader>
-                      <CardContent className="p-3 space-y-2">
-                        <div className="text-xs text-slate-500 font-medium">
-                          {dayApts.length}{" "}
-                          {dayApts.length === 1 ? "appointment" : "appointments"}
-                        </div>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                          {dayApts.map((apt) => (
-                            <div
-                              key={apt.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedAppointment(apt);
-                              }}
-                              className={cn(
-                                "text-[11px] p-1.5 rounded border leading-snug cursor-pointer",
-                                getCardColorClasses(apt.type),
-                                selectedAppointment?.id === apt.id &&
-                                  "ring-2 ring-blue-600"
+                    <Tooltip key={dayStr}>
+                      <TooltipTrigger
+                        render={
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              setCurrentDate(day);
+                              setView("day");
+                            }}
+                            className={cn(
+                              "min-h-[105px] p-2 flex flex-col justify-between transition-colors cursor-pointer text-left focus:outline-none select-none",
+                              isCurrentMonth
+                                ? "bg-white hover:bg-slate-50/90"
+                                : "bg-slate-50/70 text-slate-400 hover:bg-slate-100/70",
+                              dayIsToday && "ring-2 ring-blue-500 ring-inset bg-blue-50/20"
+                            )}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className={cn(
+                                    "flex size-6 items-center justify-center rounded-full text-xs font-semibold",
+                                    dayIsToday
+                                      ? "bg-blue-600 text-white font-bold shadow-xs"
+                                      : isCurrentMonth
+                                      ? "text-slate-800"
+                                      : "text-slate-400"
+                                  )}
+                                >
+                                  {format(day, "d")}
+                                </span>
+
+                                {/* Count badge if > 2 */}
+                                {dayApts.length > 2 && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-700 font-semibold"
+                                  >
+                                    {dayApts.length}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Colored dots: blue=Consultation, teal=Follow-up, purple=Lab Review */}
+                              {dayApts.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                  {dayApts.slice(0, 4).map((apt) => (
+                                    <span
+                                      key={apt.id}
+                                      className={cn(
+                                        "size-2 rounded-full",
+                                        getTypeDotColor(apt.type)
+                                      )}
+                                    />
+                                  ))}
+                                  {dayApts.length > 4 && (
+                                    <span className="text-[9px] text-slate-400 font-medium">
+                                      +{dayApts.length - 4}
+                                    </span>
+                                  )}
+                                </div>
                               )}
-                            >
-                              <div className="font-medium truncate">{apt.patient}</div>
-                              <div className="text-[10px] opacity-75">{apt.time}</div>
                             </div>
-                          ))}
-                          {dayApts.length === 0 && (
-                            <p className="text-[11px] italic text-slate-400 py-2 text-center">
-                              No appointments
-                            </p>
-                          )}
+
+                            {/* Small preview of up to 2 appointments */}
+                            <div className="space-y-1 mt-1">
+                              {dayApts.slice(0, 2).map((apt) => (
+                                <div
+                                  key={apt.id}
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border leading-tight",
+                                    getCardColorClasses(apt.type)
+                                  )}
+                                >
+                                  {apt.time} {apt.patient}
+                                </div>
+                              ))}
+                              {dayApts.length > 2 && (
+                                <div className="text-[10px] text-slate-500 font-medium pl-0.5">
+                                  +{dayApts.length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        }
+                      />
+                      <TooltipContent
+                        side="top"
+                        className="bg-slate-900 text-white p-2.5 rounded-lg shadow-xl max-w-xs border border-slate-800"
+                      >
+                        <div className="font-semibold text-xs mb-1.5 pb-1 border-b border-slate-800 text-slate-200">
+                          {format(day, "EEEE, MMMM d, yyyy")}
                         </div>
-                      </CardContent>
-                    </Card>
+                        {dayApts.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {dayApts.map((apt) => (
+                              <div
+                                key={apt.id}
+                                className="flex items-center justify-between gap-3 text-[11px]"
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span
+                                    className={cn(
+                                      "size-2 rounded-full shrink-0",
+                                      getTypeDotColor(apt.type)
+                                    )}
+                                  />
+                                  <span className="font-medium text-slate-100 truncate">
+                                    {apt.patient}
+                                  </span>
+                                </div>
+                                <div className="text-slate-400 text-[10px] shrink-0">
+                                  {apt.time} • {apt.type}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-400 italic">
+                            No appointments scheduled
+                          </div>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -858,7 +1306,7 @@ export default function CalendarPage() {
           )}
         </div>
 
-        {/* 3. RIGHT DETAIL PANEL (Conditional, ~300px) */}
+        {/* 3. RIGHT DETAIL PANEL (Conditional, ~320px) */}
         {selectedAppointment && (
           <Card className="w-full lg:w-[320px] shrink-0 border-slate-200 shadow-sm transition-all duration-200">
             <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-start justify-between space-y-0">
@@ -867,7 +1315,7 @@ export default function CalendarPage() {
                   Appointment Details
                 </CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ID: #{selectedAppointment.id.padStart(4, "0")}
+                  Ref: {selectedAppointment.id}
                 </p>
               </div>
               <Button
@@ -893,15 +1341,25 @@ export default function CalendarPage() {
                     {selectedAppointment.patient}
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Patient #{1020 + Number(selectedAppointment.id)}
+                    Verified Patient
                   </p>
                 </div>
               </div>
 
               <Separator />
 
-              {/* Time & Duration, Type, Doctor, Status */}
+              {/* Date, Time & Duration, Type, Doctor, Status */}
               <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <CalendarDays className="size-3.5 text-slate-400" />
+                    Date
+                  </span>
+                  <span className="font-medium text-slate-800">
+                    {format(parseDateString(selectedAppointment.date), "EEE, MMM d, yyyy")}
+                  </span>
+                </div>
+
                 <div className="flex items-start justify-between">
                   <span className="text-slate-500 flex items-center gap-1.5">
                     <Clock className="size-3.5 text-slate-400" />
@@ -918,16 +1376,6 @@ export default function CalendarPage() {
                       {selectedAppointment.duration} mins
                     </span>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 flex items-center gap-1.5">
-                    <CalendarDays className="size-3.5 text-slate-400" />
-                    Day
-                  </span>
-                  <span className="font-medium text-slate-800">
-                    {DAY_NAMES[selectedAppointment.day - 1]}
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1002,7 +1450,7 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* NEW APPOINTMENT DIALOG */}
+      {/* NEW APPOINTMENT DIALOG (With Date Picker using shadcn Calendar + Popover) */}
       <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
@@ -1060,27 +1508,47 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">
-                  Day
-                </label>
-                <select
-                  value={newDay}
-                  onChange={(e) => setNewDay(Number(e.target.value))}
-                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
-                >
-                  {DAY_NAMES.map((name, i) => (
-                    <option key={name} value={i + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Date Picker using Popover + Calendar */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Appointment Date
+              </label>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-9 text-xs cursor-pointer border-slate-200",
+                        !newDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 size-3.5 text-slate-500" />
+                      {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setNewDate(date);
+                        setIsDatePickerOpen(false);
+                      }
+                    }}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">
-                  Time
+                  Time Slot
                 </label>
                 <select
                   value={newTime}
@@ -1144,34 +1612,53 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* RESCHEDULE DIALOG */}
+      {/* RESCHEDULE DIALOG (With Date Picker using shadcn Calendar + Popover) */}
       <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-slate-900">
               Reschedule Appointment
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Select a new day and time for {selectedAppointment?.patient}.
+              Select a new date and time for {selectedAppointment?.patient}.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleRescheduleSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700">
-                New Day
+                New Date
               </label>
-              <select
-                value={rescheduleDay}
-                onChange={(e) => setRescheduleDay(Number(e.target.value))}
-                className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
+              <Popover
+                open={isRescheduleDatePickerOpen}
+                onOpenChange={setIsRescheduleDatePickerOpen}
               >
-                {DAY_NAMES.map((name, i) => (
-                  <option key={name} value={i + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal h-9 text-xs cursor-pointer border-slate-200"
+                    >
+                      <CalendarIcon className="mr-2 size-3.5 text-slate-500" />
+                      {format(rescheduleDate, "PPP")}
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={rescheduleDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setRescheduleDate(date);
+                        setIsRescheduleDatePickerOpen(false);
+                      }
+                    }}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-1.5">

@@ -60,16 +60,29 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  Heart,
+  Thermometer,
+  Activity,
+  Weight,
+  Ruler,
+  Printer,
 } from "lucide-react";
 
 export type PatientStatus = "active" | "inactive" | "new";
 
-export interface PastVisit {
-  id: string;
-  date: string;
-  doctor: string;
-  department: string;
-  notes: string;
+export interface VitalSigns {
+  bp: string;       // e.g. '120/80 mmHg'
+  hr: string;       // e.g. '72 bpm'
+  temp: string;     // e.g. '98.6°F'
+  spo2: string;     // e.g. '99%'
+  weight: string;   // e.g. '70 kg'
+  height: string;   // e.g. '170 cm'
+}
+
+export interface LabResult {
+  test: string;
+  result: string;
+  status: "normal" | "abnormal" | "pending";
 }
 
 export interface Prescription {
@@ -79,6 +92,22 @@ export interface Prescription {
   instructions: string;
   date: string;
   doctor: string;
+}
+
+export interface PastVisit {
+  id: string;
+  date: string;
+  doctor: string;
+  department: string;
+  notes: string;
+  // NEW detailed fields:
+  chiefComplaint: string;
+  diagnosis: string;
+  vitals: VitalSigns;
+  treatmentPlan: string;
+  prescriptions: Prescription[];  // reuse existing Prescription interface
+  labResults: LabResult[];
+  followUpDate: string | null;
 }
 
 export interface Invoice {
@@ -152,6 +181,51 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Endodontics",
         notes:
           "Crown fitting completed smoothly. Mild sensitivity reported; prescribed desensitizing gel.",
+        chiefComplaint:
+          "Patient returns for permanent porcelain crown placement on tooth #19 following endodontic therapy. Reports mild lingering sensitivity to cold liquids.",
+        diagnosis:
+          "Status post-root canal therapy #19; localized transient postoperative pulp/periodontal sensitivity.",
+        vitals: {
+          bp: "118/78 mmHg",
+          hr: "72 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "62 kg",
+          height: "168 cm",
+        },
+        treatmentPlan:
+          "Permanent porcelain crown seated with resin-modified glass ionomer cement. Occlusion checked and adjusted with articulating paper. Prescribed desensitizing paste and prophylactic antibiotic course. Scheduled 2-week follow-up.",
+        prescriptions: [
+          {
+            id: "RX-201",
+            medication: "Amoxicillin",
+            dosage: "500mg",
+            instructions: "Take 1 capsule 3 times daily for 5 days with meals",
+            date: "Sep 10, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+          {
+            id: "RX-202",
+            medication: "Ibuprofen",
+            dosage: "400mg",
+            instructions: "Take 1 tablet every 6 hours as needed for discomfort",
+            date: "Sep 10, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+        ],
+        labResults: [
+          {
+            test: "Periapical Digital X-Ray (#19)",
+            result: "Full margin closure; complete obturation to apex; no periapical pathology",
+            status: "normal",
+          },
+          {
+            test: "Pulp Cold Sensitivity Test",
+            result: "Negative on #19 (expected), normal adjacent response",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 24, 2026",
       },
       {
         id: "V-102",
@@ -160,6 +234,43 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "General Dentistry",
         notes:
           "Routine checkup and cleaning. Identified early decay on tooth 14.",
+        chiefComplaint:
+          "Scheduled 6-month comprehensive dental prophylaxis and oral exam. Patient noted occasional mild sensitivity in the upper right quadrant during brushing.",
+        diagnosis:
+          "Early enamel demineralization (occlusal caries) on tooth #14; localized mild marginal gingivitis.",
+        vitals: {
+          bp: "120/80 mmHg",
+          hr: "70 bpm",
+          temp: "98.6°F",
+          spo2: "98%",
+          weight: "62 kg",
+          height: "168 cm",
+        },
+        treatmentPlan:
+          "Completed full-mouth ultrasonic scaling and polish. Applied topical fluoride varnish. Recommended electric brush technique and daily interdental flossing. Scheduled restorative composite filling.",
+        prescriptions: [
+          {
+            id: "RX-203",
+            medication: "Chlorhexidine Gluconate 0.12%",
+            dosage: "15ml oral rinse",
+            instructions: "Swish and spit twice daily after brushing for 14 days",
+            date: "Aug 14, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+        ],
+        labResults: [
+          {
+            test: "Bitewing Radiographs (4 Views)",
+            result: "Interproximal enamel caries detected at tooth #14; bone levels intact",
+            status: "abnormal",
+          },
+          {
+            test: "Periodontal Pocket Depth Probing",
+            result: "Depths between 2-3mm, minimal bleeding upon probing",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 10, 2026",
       },
       {
         id: "V-103",
@@ -167,6 +278,43 @@ const INITIAL_PATIENTS: Patient[] = [
         doctor: "Dr. Priya Desai",
         department: "Endodontics",
         notes: "Initial consultation and full mouth digital X-rays taken.",
+        chiefComplaint:
+          "Severe spontaneous throbbing pain radiating to left mandible, aggravated by thermal stimuli and mastication over the past 4 days.",
+        diagnosis:
+          "Symptomatic irreversible pulpitis with symptomatic apical periodontitis (#19).",
+        vitals: {
+          bp: "124/82 mmHg",
+          hr: "78 bpm",
+          temp: "98.8°F",
+          spo2: "99%",
+          weight: "61 kg",
+          height: "168 cm",
+        },
+        treatmentPlan:
+          "Emergency pulpectomy and root canal initialization performed under local anesthesia (2% lidocaine 1:100k epi). Working length determined. Temporary Cavit restoration placed.",
+        prescriptions: [
+          {
+            id: "RX-204",
+            medication: "Ibuprofen",
+            dosage: "600mg",
+            instructions: "Take 1 tablet every 6-8 hours with food for acute pain",
+            date: "Jun 22, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+        ],
+        labResults: [
+          {
+            test: "Panoramic Digital Orthopantomogram",
+            result: "Extensive deep carious lesion encroaching on pulp chamber #19; widened PDL space",
+            status: "abnormal",
+          },
+          {
+            test: "Endodontic Electric Pulp Test",
+            result: "Premature hyper-reactive response at lower threshold",
+            status: "abnormal",
+          },
+        ],
+        followUpDate: "Jul 06, 2026",
       },
     ],
     prescriptions: [
@@ -236,6 +384,51 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Internal Medicine",
         notes:
           "Blood pressure normal (120/80 mmHg). Lipid panel reviewed and stable.",
+        chiefComplaint:
+          "Routine hypertension & hyperlipidemia quarterly follow-up and lipid panel review.",
+        diagnosis:
+          "Essential hypertension (well-controlled); primary hyperlipidemia on statin therapy.",
+        vitals: {
+          bp: "120/80 mmHg",
+          hr: "68 bpm",
+          temp: "98.6°F",
+          spo2: "99%",
+          weight: "82 kg",
+          height: "178 cm",
+        },
+        treatmentPlan:
+          "Maintain Atorvastatin 20mg daily. Continue DASH diet and 30 min daily cardiovascular exercise.",
+        prescriptions: [
+          {
+            id: "RX-301",
+            medication: "Atorvastatin",
+            dosage: "20mg",
+            instructions: "Take 1 tablet once daily at bedtime",
+            date: "Sep 08, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+          {
+            id: "RX-302",
+            medication: "Metformin",
+            dosage: "500mg",
+            instructions: "Take 1 tablet twice daily with meals",
+            date: "Sep 08, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+        ],
+        labResults: [
+          {
+            test: "Lipid Panel (Total / LDL / HDL)",
+            result: "Total: 172 mg/dL, LDL: 88 mg/dL, HDL: 52 mg/dL",
+            status: "normal",
+          },
+          {
+            test: "Comprehensive Metabolic Panel (CMP)",
+            result: "eGFR >90, Creatinine 0.9 mg/dL, AST/ALT within normal limits",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Dec 08, 2026",
       },
       {
         id: "V-202",
@@ -244,6 +437,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Cardiology",
         notes:
           "ECG performed with normal sinus rhythm. Continued current statin dosage.",
+        chiefComplaint:
+          "Cardiology consult for exertional fatigue evaluation and routine resting ECG.",
+        diagnosis:
+          "Cardiovascular risk assessment; normal sinus rhythm; no acute ischemic changes.",
+        vitals: {
+          bp: "124/82 mmHg",
+          hr: "72 bpm",
+          temp: "98.5°F",
+          spo2: "98%",
+          weight: "83 kg",
+          height: "178 cm",
+        },
+        treatmentPlan:
+          "Resting 12-lead ECG confirmed sinus rhythm. Continue lipid management.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "12-Lead Electrocardiogram (ECG)",
+            result: "Normal sinus rhythm, HR 72, normal axis, no ST-T abnormalities",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 08, 2026",
       },
       {
         id: "V-203",
@@ -252,6 +468,38 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Internal Medicine",
         notes:
           "Quarterly review. Notable lifestyle improvements and glycemic control.",
+        chiefComplaint:
+          "Quarterly wellness review and assessment of glycemic control and lifestyle modifications.",
+        diagnosis:
+          "Type 2 diabetes mellitus (well controlled), pre-hypertension.",
+        vitals: {
+          bp: "126/82 mmHg",
+          hr: "70 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "84 kg",
+          height: "178 cm",
+        },
+        treatmentPlan:
+          "Fasting blood glucose stable. Lifestyle improvements sustained.",
+        prescriptions: [
+          {
+            id: "RX-303",
+            medication: "Metformin",
+            dosage: "500mg",
+            instructions: "Take 1 tablet twice daily with meals",
+            date: "Mar 15, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+        ],
+        labResults: [
+          {
+            test: "Hemoglobin A1c (HbA1c)",
+            result: "6.2% (Target < 7.0%)",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Jun 11, 2026",
       },
     ],
     prescriptions: [
@@ -318,6 +566,46 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Dermatology",
         notes:
           "Eczema flare-up on right forearm. Prescribed topical corticosteroid taper.",
+        chiefComplaint:
+          "Pruritic erythematous rash with flaking on right forearm lasting 10 days.",
+        diagnosis:
+          "Atopic dermatitis (acute flare-up, localized to right volar forearm).",
+        vitals: {
+          bp: "112/74 mmHg",
+          hr: "74 bpm",
+          temp: "98.6°F",
+          spo2: "100%",
+          weight: "58 kg",
+          height: "165 cm",
+        },
+        treatmentPlan:
+          "Apply Hydrocortisone Cream 2.5% twice daily for 7 days then taper to ceramide barrier cream. Oral antihistamines at bedtime.",
+        prescriptions: [
+          {
+            id: "RX-401",
+            medication: "Hydrocortisone Cream 2.5%",
+            dosage: "30g tube",
+            instructions: "Apply thin layer to affected area twice daily for 7 days",
+            date: "Sep 05, 2026",
+            doctor: "Dr. Anita Roy",
+          },
+          {
+            id: "RX-402",
+            medication: "Cetirizine HCl",
+            dosage: "10mg",
+            instructions: "Take 1 tablet once daily at bedtime",
+            date: "Sep 05, 2026",
+            doctor: "Dr. Anita Roy",
+          },
+        ],
+        labResults: [
+          {
+            test: "Skin Surface Swab Culture",
+            result: "Negative for secondary bacterial or fungal superinfection",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 28, 2026",
       },
       {
         id: "V-302",
@@ -326,6 +614,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Dermatology",
         notes:
           "Skin allergy prick test conducted. Mild sensitivity to seasonal pollens.",
+        chiefComplaint:
+          "Skin allergy prick testing following recurrent contact urticaria.",
+        diagnosis:
+          "Allergic contact dermatitis; mild environmental aeroallergen sensitization.",
+        vitals: {
+          bp: "114/76 mmHg",
+          hr: "70 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "58 kg",
+          height: "165 cm",
+        },
+        treatmentPlan:
+          "Patch & prick test panel completed. Avoid identified cosmetic fragrance allergens.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Epicutaneous Allergy Prick Panel (36 Antigens)",
+            result: "Mild positive wheal to tree pollens and fragrance mix I (4mm)",
+            status: "abnormal",
+          },
+        ],
+        followUpDate: "Sep 05, 2026",
       },
       {
         id: "V-303",
@@ -334,6 +645,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "General Practice",
         notes:
           "Annual preventive physical and routine preventative blood panel.",
+        chiefComplaint:
+          "Annual comprehensive preventive health physical exam.",
+        diagnosis:
+          "Routine adult preventive wellness exam; no chronic systemic illnesses.",
+        vitals: {
+          bp: "110/72 mmHg",
+          hr: "68 bpm",
+          temp: "98.6°F",
+          spo2: "99%",
+          weight: "57 kg",
+          height: "165 cm",
+        },
+        treatmentPlan:
+          "Preventative screening blood panel ordered. All immunizations up to date.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Complete Blood Count (CBC)",
+            result: "WBC: 6.4, Hb: 13.8 g/dL, Platelets: 245k",
+            status: "normal",
+          },
+        ],
+        followUpDate: null,
       },
     ],
     prescriptions: [
@@ -394,6 +728,38 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Periodontics",
         notes:
           "Periodontal maintenance completed. Patient reminded to reschedule 6-month recall.",
+        chiefComplaint:
+          "Periodontal maintenance 3-month recall and jaw tightness upon waking.",
+        diagnosis:
+          "Chronic periodontitis (generalized stage II, grade B, in maintenance); mild nocturnal bruxism.",
+        vitals: {
+          bp: "128/84 mmHg",
+          hr: "75 bpm",
+          temp: "98.6°F",
+          spo2: "98%",
+          weight: "86 kg",
+          height: "175 cm",
+        },
+        treatmentPlan:
+          "Selective subgingival debridement and chlorhexidine irrigation. Recommended custom nightguard fabrication.",
+        prescriptions: [
+          {
+            id: "RX-501",
+            medication: "Chlorhexidine 0.12%",
+            dosage: "300ml bottle",
+            instructions: "Rinse with 15ml twice daily after brushing for 2 weeks",
+            date: "Aug 28, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+        ],
+        labResults: [
+          {
+            test: "Periodontal Pocket Depth Charting",
+            result: "Probing depths 2-3mm with stable bone levels; isolated 4mm distal #18",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Nov 28, 2026",
       },
       {
         id: "V-402",
@@ -402,6 +768,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Periodontics",
         notes:
           "Deep scaling upper right quadrant. Healing uneventful without pockets.",
+        chiefComplaint:
+          "Scheduled quadrant deep scaling and root planing for localized pockets.",
+        diagnosis:
+          "Localized moderate periodontitis in maxillary right quadrant.",
+        vitals: {
+          bp: "130/84 mmHg",
+          hr: "76 bpm",
+          temp: "98.5°F",
+          spo2: "98%",
+          weight: "86 kg",
+          height: "175 cm",
+        },
+        treatmentPlan:
+          "Completed SRP upper right quadrant under local infiltration anesthesia. Post-op instructions given.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Digital Bitewing Radiographs",
+            result: "Subgingival calculus deposits removed; no furcation involvement",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Aug 28, 2026",
       },
       {
         id: "V-403",
@@ -409,6 +798,38 @@ const INITIAL_PATIENTS: Patient[] = [
         doctor: "Dr. Rohan Mehra",
         department: "General Practice",
         notes: "General consultation regarding episodic TMJ joint discomfort.",
+        chiefComplaint:
+          "Bilateral temporomandibular joint clicking and dull morning facial soreness.",
+        diagnosis:
+          "Myofascial pain dysfunction syndrome; temporomandibular joint disc displacement with reduction.",
+        vitals: {
+          bp: "126/82 mmHg",
+          hr: "72 bpm",
+          temp: "98.6°F",
+          spo2: "99%",
+          weight: "85 kg",
+          height: "175 cm",
+        },
+        treatmentPlan:
+          "Soft diet for 2 weeks, warm moist compresses, jaw stretch exercises. NSAIDs for pain.",
+        prescriptions: [
+          {
+            id: "RX-502",
+            medication: "Paracetamol",
+            dosage: "650mg",
+            instructions: "Take 1 tablet every 6-8 hours as needed for joint ache",
+            date: "Nov 09, 2025",
+            doctor: "Dr. Rohan Mehra",
+          },
+        ],
+        labResults: [
+          {
+            test: "TMJ Range of Motion Examination",
+            result: "Max interincisal opening 42mm, bilateral joint clicking without lock",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Feb 14, 2026",
       },
     ],
     prescriptions: [
@@ -478,6 +899,52 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Orthopedics",
         notes:
           "Post-op knee rehab session #4. Range of motion improved to 110 degrees.",
+        chiefComplaint:
+          "Postoperative rehabilitation session #4 following right knee arthroscopic ACL reconstruction.",
+        diagnosis:
+          "Status post right ACL reconstruction with hamstring autograft (week 6).",
+        vitals: {
+          bp: "116/76 mmHg",
+          hr: "68 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "64 kg",
+          height: "170 cm",
+        },
+        treatmentPlan:
+          "Closed kinetic chain exercises, stationary cycling 15 min, active knee flexion progression to 110 degrees. Cryotherapy applied.",
+        prescriptions: [
+          {
+            id: "RX-601",
+            medication: "Celecoxib",
+            dosage: "200mg",
+            instructions:
+              "Take 1 capsule once daily with food for anti-inflammatory relief",
+            date: "Sep 12, 2026",
+            doctor: "Dr. Vikram Patel",
+          },
+          {
+            id: "RX-602",
+            medication: "Glucosamine Sulfate",
+            dosage: "1500mg",
+            instructions: "Take 1 tablet daily with morning breakfast",
+            date: "Sep 12, 2026",
+            doctor: "Dr. Vikram Patel",
+          },
+        ],
+        labResults: [
+          {
+            test: "Knee Goniometric Active Range of Motion",
+            result: "Extension: 0°, Flexion: 110° (Target achieved)",
+            status: "normal",
+          },
+          {
+            test: "Quadriceps Isometric Strength Index",
+            result: "78% compared to contralateral healthy limb",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 26, 2026",
       },
       {
         id: "V-502",
@@ -486,6 +953,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Orthopedics",
         notes:
           "Rehab session #3. Quad isometric strengthening exercises progressed smoothly.",
+        chiefComplaint:
+          "Post-op knee rehab check and progression to weight-bearing exercises.",
+        diagnosis:
+          "Right knee ACL reconstruction convalescence; improving joint stability.",
+        vitals: {
+          bp: "118/78 mmHg",
+          hr: "70 bpm",
+          temp: "98.6°F",
+          spo2: "99%",
+          weight: "64 kg",
+          height: "170 cm",
+        },
+        treatmentPlan:
+          "Isometric quad sets, straight leg raises, patellar mobilizations. Continue hinged knee brace during ambulation.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Knee Goniometric Range of Motion",
+            result: "Extension: -2°, Flexion: 95°",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 12, 2026",
       },
       {
         id: "V-503",
@@ -494,6 +984,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Orthopedics",
         notes:
           "Rehab session #2. Mild effusion managed with cold therapy and elevation.",
+        chiefComplaint:
+          "Post-op swelling and mild joint effusion following initial physical therapy.",
+        diagnosis:
+          "Mild postoperative reactive joint effusion right knee.",
+        vitals: {
+          bp: "120/80 mmHg",
+          hr: "72 bpm",
+          temp: "98.7°F",
+          spo2: "99%",
+          weight: "64 kg",
+          height: "170 cm",
+        },
+        treatmentPlan:
+          "PRICE protocol (protection, rest, ice, compression, elevation). Temporary reduction in resistance load.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Knee Joint Effusion Clinical Ballot Test",
+            result: "Trace fluid wave palpable; no erythema or fever",
+            status: "abnormal",
+          },
+        ],
+        followUpDate: "Aug 29, 2026",
       },
     ],
     prescriptions: [
@@ -561,6 +1074,52 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Endocrinology",
         notes:
           "HbA1c checked at 6.8%. Foot examination normal with intact sensation and pulses.",
+        chiefComplaint:
+          "Routine diabetic endocrine monitoring, glycemic control evaluation, and annual foot examination.",
+        diagnosis:
+          "Type 2 diabetes mellitus without acute complications; essential hypertension.",
+        vitals: {
+          bp: "126/80 mmHg",
+          hr: "72 bpm",
+          temp: "98.5°F",
+          spo2: "98%",
+          weight: "79 kg",
+          height: "172 cm",
+        },
+        treatmentPlan:
+          "Continue Empagliflozin 10mg and Lisinopril 10mg daily. Monofilament foot exam demonstrated intact protective sensation.",
+        prescriptions: [
+          {
+            id: "RX-701",
+            medication: "Empagliflozin",
+            dosage: "10mg",
+            instructions:
+              "Take 1 tablet once daily in the morning with or without food",
+            date: "Sep 01, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+          {
+            id: "RX-702",
+            medication: "Lisinopril",
+            dosage: "10mg",
+            instructions: "Take 1 tablet once daily in the morning",
+            date: "Sep 01, 2026",
+            doctor: "Dr. Rohan Mehra",
+          },
+        ],
+        labResults: [
+          {
+            test: "Hemoglobin A1c (HbA1c)",
+            result: "6.8% (Target < 7.0%)",
+            status: "normal",
+          },
+          {
+            test: "Urinary Albumin-to-Creatinine Ratio (UACR)",
+            result: "18 mg/g (Normal < 30 mg/g)",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Oct 15, 2026",
       },
       {
         id: "V-602",
@@ -569,6 +1128,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Internal Medicine",
         notes:
           "Renal panel review. Microalbumin ratio stable and within expected limits.",
+        chiefComplaint:
+          "Quarterly renal function surveillance for ACE inhibitor therapy.",
+        diagnosis:
+          "Chronic kidney disease stage 1 (stable, normal eGFR on Lisinopril).",
+        vitals: {
+          bp: "128/82 mmHg",
+          hr: "70 bpm",
+          temp: "98.6°F",
+          spo2: "98%",
+          weight: "80 kg",
+          height: "172 cm",
+        },
+        treatmentPlan:
+          "Serum potassium and creatinine within safe targets. Renewed Lisinopril prescription.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Basic Metabolic Panel (Creatinine / Potassium)",
+            result: "Creatinine: 1.0 mg/dL, K+: 4.4 mmol/L, eGFR >85",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Sep 01, 2026",
       },
       {
         id: "V-603",
@@ -577,6 +1159,23 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Preventative Care",
         notes:
           "Annual influenza immunization administered without any adverse response.",
+        chiefComplaint:
+          "Seasonal influenza immunization walk-in visit.",
+        diagnosis:
+          "Preventive health maintenance; influenza vaccination administered.",
+        vitals: {
+          bp: "124/78 mmHg",
+          hr: "68 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "80 kg",
+          height: "172 cm",
+        },
+        treatmentPlan:
+          "Quadrivalent influenza vaccine (0.5ml IM right deltoid) administered. Patient observed 15 min with no adverse reaction.",
+        prescriptions: [],
+        labResults: [],
+        followUpDate: null,
       },
     ],
     prescriptions: [
@@ -647,6 +1246,58 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "General Practice",
         notes:
           "Initial consultation and medical history intake. Baseline blood tests ordered.",
+        chiefComplaint:
+          "Persistent generalized fatigue, mild hair thinning, and feeling cold over the past 3 months.",
+        diagnosis:
+          "Fatigue under evaluation; suspected vitamin D deficiency and mild microcytic anemia.",
+        vitals: {
+          bp: "108/70 mmHg",
+          hr: "76 bpm",
+          temp: "98.2°F",
+          spo2: "99%",
+          weight: "52 kg",
+          height: "162 cm",
+        },
+        treatmentPlan:
+          "Prescribed weekly therapeutic Cholecalciferol and daily oral iron supplementation. Baseline thyroid and ferritin panel ordered.",
+        prescriptions: [
+          {
+            id: "RX-801",
+            medication: "Vitamin D3 (Cholecalciferol)",
+            dosage: "60,000 IU",
+            instructions:
+              "Take 1 capsule weekly after lunch for 8 consecutive weeks",
+            date: "Sep 11, 2026",
+            doctor: "Dr. Anita Roy",
+          },
+          {
+            id: "RX-802",
+            medication: "Iron Polysaccharide Complex",
+            dosage: "150mg",
+            instructions:
+              "Take 1 capsule daily on an empty stomach with citrus juice",
+            date: "Sep 11, 2026",
+            doctor: "Dr. Anita Roy",
+          },
+        ],
+        labResults: [
+          {
+            test: "Serum 25-Hydroxy Vitamin D",
+            result: "14.2 ng/mL (Deficient: < 20 ng/mL)",
+            status: "abnormal",
+          },
+          {
+            test: "Serum Ferritin & Iron Panel",
+            result: "Ferritin: 18 ng/mL (Low-normal), Iron: 48 ug/dL",
+            status: "abnormal",
+          },
+          {
+            test: "Thyroid Stimulating Hormone (TSH)",
+            result: "Pending laboratory batch processing",
+            status: "pending",
+          },
+        ],
+        followUpDate: "Sep 22, 2026",
       },
       {
         id: "V-702",
@@ -655,6 +1306,23 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Clinical Triage",
         notes:
           "Pre-registration health questionnaire and vaccine history record.",
+        chiefComplaint:
+          "New patient pre-registration health questionnaire, vaccination verification, and clinical triage.",
+        diagnosis:
+          "New patient administrative intake and baseline vital assessment.",
+        vitals: {
+          bp: "110/72 mmHg",
+          hr: "74 bpm",
+          temp: "98.4°F",
+          spo2: "99%",
+          weight: "52 kg",
+          height: "162 cm",
+        },
+        treatmentPlan:
+          "Completed health background questionnaire. Scheduled comprehensive physician appointment.",
+        prescriptions: [],
+        labResults: [],
+        followUpDate: "Sep 11, 2026",
       },
       {
         id: "V-703",
@@ -663,6 +1331,23 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Patient Intake",
         notes:
           "Account setup and insurance coverage policy confirmation.",
+        chiefComplaint:
+          "Insurance verification and electronic medical record creation.",
+        diagnosis:
+          "Administrative onboarding.",
+        vitals: {
+          bp: "110/70 mmHg",
+          hr: "72 bpm",
+          temp: "98.6°F",
+          spo2: "99%",
+          weight: "52 kg",
+          height: "162 cm",
+        },
+        treatmentPlan:
+          "Insurance coverage active. Medical records transferred from prior provider.",
+        prescriptions: [],
+        labResults: [],
+        followUpDate: "Aug 30, 2026",
       },
     ],
     prescriptions: [
@@ -725,6 +1410,47 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "Prosthodontics",
         notes:
           "Bridge consultation. Discussion around 3-unit fixed bridge vs dental implant.",
+        chiefComplaint:
+          "Consultation regarding restoration of missing maxillary right first molar (#3) and masticatory difficulty.",
+        diagnosis:
+          "Partial edentulism (missing tooth #3); candidate for 3-unit fixed bridge vs endosseous implant.",
+        vitals: {
+          bp: "134/86 mmHg",
+          hr: "78 bpm",
+          temp: "98.6°F",
+          spo2: "97%",
+          weight: "88 kg",
+          height: "176 cm",
+        },
+        treatmentPlan:
+          "Discussed pros/cons of dental implant vs bridge. Diagnostic study models and CBCT scan requested.",
+        prescriptions: [
+          {
+            id: "RX-901",
+            medication: "Amoxicillin/Clavulanate",
+            dosage: "875/125mg",
+            instructions: "Take 1 tablet twice daily every 12 hours for 7 days",
+            date: "Jul 15, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+          {
+            id: "RX-902",
+            medication: "Tramadol HCl",
+            dosage: "50mg",
+            instructions:
+              "Take 1 tablet every 6 hours as needed for severe toothache",
+            date: "Jul 15, 2026",
+            doctor: "Dr. Priya Desai",
+          },
+        ],
+        labResults: [
+          {
+            test: "Cone Beam CT Scan (CBCT)",
+            result: "Adequate bone height (11mm) and width (7.5mm) at site #3",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Oct 10, 2026",
       },
       {
         id: "V-802",
@@ -733,6 +1459,29 @@ const INITIAL_PATIENTS: Patient[] = [
         department: "General Dentistry",
         notes:
           "Routine prophy and exam. Moderate calculus accumulation.",
+        chiefComplaint:
+          "Routine cleaning and exam with moderate subgingival calculus buildup.",
+        diagnosis:
+          "Generalized marginal gingivitis; moderate calculus deposition.",
+        vitals: {
+          bp: "136/88 mmHg",
+          hr: "80 bpm",
+          temp: "98.6°F",
+          spo2: "98%",
+          weight: "88 kg",
+          height: "176 cm",
+        },
+        treatmentPlan:
+          "Full-mouth gross debridement and ultrasonic prophy completed. Recommended interdental brushes.",
+        prescriptions: [],
+        labResults: [
+          {
+            test: "Bitewing Radiographic Survey",
+            result: "No recurrent caries detected; mild horizontal crestal bone resorption",
+            status: "normal",
+          },
+        ],
+        followUpDate: "Jul 15, 2026",
       },
       {
         id: "V-803",
@@ -740,6 +1489,23 @@ const INITIAL_PATIENTS: Patient[] = [
         doctor: "Dr. Rohan Mehra",
         department: "General Practice",
         notes: "General consultation for seasonal allergic rhinitis.",
+        chiefComplaint:
+          "Seasonal allergic rhinitis symptoms, nasal congestion, and itchy watery eyes.",
+        diagnosis:
+          "Seasonal allergic rhinitis; mild Eustachian tube dysfunction.",
+        vitals: {
+          bp: "132/84 mmHg",
+          hr: "74 bpm",
+          temp: "98.5°F",
+          spo2: "98%",
+          weight: "87 kg",
+          height: "176 cm",
+        },
+        treatmentPlan:
+          "Fluticasone propionate nasal spray 2 sprays each nostril daily. Saline nasal irrigation.",
+        prescriptions: [],
+        labResults: [],
+        followUpDate: null,
       },
     ],
     prescriptions: [
@@ -907,6 +1673,7 @@ export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>(INITIAL_PATIENTS);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedVisit, setSelectedVisit] = useState<PastVisit | null>(null);
 
   // Add Patient Modal Form State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -966,6 +1733,20 @@ export default function PatientsPage() {
           doctor: "Dr. Rohan Mehra",
           department: "General Medicine",
           notes: "Initial registration intake and general baseline health assessment.",
+          chiefComplaint: "New patient registration and baseline wellness check.",
+          diagnosis: "Routine general physical examination - healthy adult.",
+          vitals: {
+            bp: "120/80 mmHg",
+            hr: "72 bpm",
+            temp: "98.6°F",
+            spo2: "99%",
+            weight: "70 kg",
+            height: "170 cm",
+          },
+          treatmentPlan: "Baseline assessment complete. Schedule annual screening in 12 months.",
+          prescriptions: [],
+          labResults: [],
+          followUpDate: null,
         },
       ],
       prescriptions: [],
@@ -1376,7 +2157,8 @@ export default function PatientsPage() {
                     {selectedPatient.visits.map((visit) => (
                       <Card
                         key={visit.id}
-                        className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900"
+                        onClick={() => setSelectedVisit(visit)}
+                        className="border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors"
                       >
                         <CardContent className="p-4 space-y-2">
                           <div className="flex items-center justify-between">
@@ -1760,6 +2542,329 @@ export default function PatientsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Visit Detail Dialog */}
+      <Dialog open={!!selectedVisit} onOpenChange={() => setSelectedVisit(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {selectedVisit && (
+            <div className="space-y-6">
+              {/* Header: Visit date, doctor name, department badge, "Print" outline button (window.print()) */}
+              <DialogHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Calendar className="size-4 text-blue-600 dark:text-blue-400" />
+                      <span>{selectedVisit.date}</span>
+                    </DialogTitle>
+                    <Badge
+                      variant="outline"
+                      className="text-xs font-semibold border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300"
+                    >
+                      {selectedVisit.department}
+                    </Badge>
+                  </div>
+                  <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                    <User className="size-3.5 text-slate-400" />
+                    <span>
+                      Attending Physician:{" "}
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {selectedVisit.doctor}
+                      </strong>
+                    </span>
+                    {selectedPatient && (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-600">•</span>
+                        <span>
+                          Patient:{" "}
+                          <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                            {selectedPatient.name} ({selectedPatient.id})
+                          </strong>
+                        </span>
+                      </>
+                    )}
+                  </DialogDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.print();
+                    }
+                  }}
+                  className="text-xs font-medium gap-1.5 self-start sm:self-auto cursor-pointer"
+                >
+                  <Printer className="size-3.5" />
+                  Print
+                </Button>
+              </DialogHeader>
+
+              {/* Section 1 - Chief Complaint: Text paragraph */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Chief Complaint
+                </h4>
+                <p className="text-sm text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed">
+                  {selectedVisit.chiefComplaint}
+                </p>
+              </div>
+
+              {/* Section 2 - Vitals Strip: 6 cards in a grid (BP, HR, Temp, SpO2, Weight, Height) */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Vital Signs
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Activity className="size-3.5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">BP</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.bp}
+                    </div>
+                  </Card>
+
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Heart className="size-3.5 text-rose-600 dark:text-rose-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">HR</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.hr}
+                    </div>
+                  </Card>
+
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Thermometer className="size-3.5 text-amber-600 dark:text-amber-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Temp</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.temp}
+                    </div>
+                  </Card>
+
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Activity className="size-3.5 text-teal-600 dark:text-teal-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">SpO2</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.spo2}
+                    </div>
+                  </Card>
+
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Weight className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Weight</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.weight}
+                    </div>
+                  </Card>
+
+                  <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500 dark:text-slate-400">
+                      <Ruler className="size-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Height</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {selectedVisit.vitals.height}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Section 3 - Diagnosis: Text with a label */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Diagnosis
+                </h4>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed">
+                  {selectedVisit.diagnosis}
+                </p>
+              </div>
+
+              {/* Section 4 - Treatment Plan: Text with a label */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Treatment Plan
+                </h4>
+                <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed">
+                  {selectedVisit.treatmentPlan}
+                </p>
+              </div>
+
+              {/* Section 5 - Prescriptions: Small table with columns: Medication, Dosage, Instructions, Prescribed by */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Pill className="size-3.5 text-teal-600 dark:text-teal-400" />
+                    Prescriptions
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedVisit.prescriptions.length} item{selectedVisit.prescriptions.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {selectedVisit.prescriptions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center text-xs text-muted-foreground">
+                    No prescriptions recorded for this encounter.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Medication
+                          </TableHead>
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Dosage
+                          </TableHead>
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Instructions
+                          </TableHead>
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Prescribed by
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedVisit.prescriptions.map((rx) => (
+                          <TableRow key={rx.id} className="text-xs">
+                            <TableCell className="font-semibold text-slate-900 dark:text-slate-100 py-2.5">
+                              {rx.medication}
+                            </TableCell>
+                            <TableCell className="text-teal-700 dark:text-teal-400 font-medium py-2.5">
+                              {rx.dosage}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400 py-2.5">
+                              {rx.instructions}
+                            </TableCell>
+                            <TableCell className="text-slate-700 dark:text-slate-300 py-2.5">
+                              {rx.doctor}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 6 - Lab Results: Table with columns: Test, Result, Status (badge: green for normal, red for abnormal, gray for pending) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <FileText className="size-3.5 text-blue-600 dark:text-blue-400" />
+                    Lab Results
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedVisit.labResults.length} result{selectedVisit.labResults.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {selectedVisit.labResults.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center text-xs text-muted-foreground">
+                    No lab results recorded for this encounter.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Test
+                          </TableHead>
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8">
+                            Result
+                          </TableHead>
+                          <TableHead className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 h-8 text-right">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedVisit.labResults.map((lab, idx) => (
+                          <TableRow key={idx} className="text-xs">
+                            <TableCell className="font-semibold text-slate-900 dark:text-slate-100 py-2.5">
+                              {lab.test}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400 py-2.5">
+                              {lab.result}
+                            </TableCell>
+                            <TableCell className="text-right py-2.5">
+                              {lab.status === "normal" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px] font-medium capitalize"
+                                >
+                                  Normal
+                                </Badge>
+                              )}
+                              {lab.status === "abnormal" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-400 text-[10px] font-medium capitalize"
+                                >
+                                  Abnormal
+                                </Badge>
+                              )}
+                              {lab.status === "pending" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-medium capitalize"
+                                >
+                                  Pending
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 7 - Follow-up: Date or 'No follow-up scheduled' */}
+              <div className="flex items-center justify-between p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-xs">
+                <div className="flex items-center gap-2">
+                  <Calendar className="size-4 text-blue-600 dark:text-blue-400" />
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    Follow-up:
+                  </span>
+                  <span className="text-slate-900 dark:text-slate-100 font-medium">
+                    {selectedVisit.followUpDate ? selectedVisit.followUpDate : "No follow-up scheduled"}
+                  </span>
+                </div>
+                {selectedVisit.followUpDate && (
+                  <Badge
+                    variant="outline"
+                    className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 text-[10px]"
+                  >
+                    Scheduled
+                  </Badge>
+                )}
+              </div>
+
+              {/* Footer: 'Close' button */}
+              <DialogFooter className="pt-3 border-t border-slate-100 dark:border-slate-800 sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedVisit(null)}
+                  className="text-xs font-medium cursor-pointer"
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
