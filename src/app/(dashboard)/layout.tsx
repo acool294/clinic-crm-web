@@ -45,11 +45,13 @@ import {
   Receipt,
   Search,
   Settings,
+  Stethoscope,
   Users,
 } from "lucide-react";
 
 interface NavItem {
-  title: string;
+  title?: string;
+  label?: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 }
@@ -71,6 +73,11 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
+    title: "Diagnosis",
+    href: "/diagnosis",
+    icon: Stethoscope,
+  },
+  {
     title: "Billing",
     href: "/billing",
     icon: Receipt,
@@ -86,6 +93,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === "/" || pathname === "") return "Dashboard";
   if (pathname.startsWith("/calendar")) return "Calendar";
   if (pathname.startsWith("/patients")) return "Patients";
+  if (pathname.startsWith("/diagnosis")) return "Diagnosis";
   if (pathname.startsWith("/billing")) return "Billing";
   if (pathname.startsWith("/settings")) return "Settings";
 
@@ -198,12 +206,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <SidebarMenu className="gap-1 px-2 py-2">
                 {navItems.map((item) => {
                   const active = isItemActive(item.href);
+                  const label = item.label ?? item.title ?? "";
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         render={<Link href={item.href} />}
                         isActive={active}
-                        tooltip={item.title}
+                        tooltip={label}
                         className={cn(
                           "w-full justify-start gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                           active
@@ -217,7 +226,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                             active ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
                           )}
                         />
-                        <span className="truncate">{item.title}</span>
+                        <span className="truncate">{label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

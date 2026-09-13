@@ -1,0 +1,1730 @@
+"use client";
+
+import * as React from "react";
+import { useState, useRef, useId } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import {
+  Stethoscope,
+  Activity,
+  FileText,
+  Pill,
+  FlaskConical,
+  Upload,
+  Trash2,
+  Plus,
+  Image as ImageIcon,
+  Check,
+  Loader2,
+  X,
+  User,
+  Clock,
+  Heart,
+  Thermometer,
+  Ruler,
+  AlertCircle,
+  Calendar,
+  Sparkles,
+} from "lucide-react";
+
+interface MockPatient {
+  id: string;
+  name: string;
+  age: number;
+  gender: "Female" | "Male" | "Other";
+  bloodGroup: string;
+  allergies: string[];
+  lastVisit: string;
+  nextAppointment: {
+    date: string;
+    time: string;
+    doctor: string;
+    type: string;
+    room?: string;
+  };
+  previousVisits: {
+    id: string;
+    date: string;
+    doctor: string;
+    department: string;
+    notes: string;
+  }[];
+  activeMedications: {
+    id: string;
+    medication: string;
+    dosage: string;
+    frequency: string;
+    prescribedDate: string;
+  }[];
+  defaultVitals: {
+    bp: string;
+    hr: string;
+    temp: string;
+    spo2: string;
+    weight: string;
+    height: string;
+  };
+  defaultChiefComplaint: string;
+  defaultDiagnosis: string;
+  defaultTreatmentPlan: string;
+}
+
+const MOCK_PATIENTS: MockPatient[] = [
+  {
+    id: "P-8821",
+    name: "Eleanor Vance",
+    age: 34,
+    gender: "Female",
+    bloodGroup: "A+",
+    allergies: ["Penicillin", "Dust"],
+    lastVisit: "Sep 10, 2026",
+    nextAppointment: {
+      date: "Sep 24, 2026",
+      time: "10:30 AM",
+      doctor: "Dr. Priya Desai",
+      type: "Root Canal Follow-up",
+      room: "Suite 3B",
+    },
+    previousVisits: [
+      {
+        id: "v-101",
+        date: "Sep 10, 2026",
+        doctor: "Dr. Priya Desai",
+        department: "Endodontics",
+        notes:
+          "Crown fitting completed smoothly. Mild sensitivity reported; prescribed desensitizing gel.",
+      },
+      {
+        id: "v-102",
+        date: "Aug 14, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Dentistry",
+        notes:
+          "Routine checkup and cleaning. Identified early decay on tooth #14.",
+      },
+      {
+        id: "v-103",
+        date: "Jun 02, 2026",
+        doctor: "Dr. Priya Desai",
+        department: "Endodontics",
+        notes:
+          "Root canal obturation completed on tooth #19. Temporary composite restoration placed.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-1",
+        medication: "Amoxicillin 500mg",
+        dosage: "1 capsule",
+        frequency: "3x daily with meals (5 days)",
+        prescribedDate: "Sep 10, 2026",
+      },
+      {
+        id: "am-2",
+        medication: "Ibuprofen 400mg",
+        dosage: "1 tablet",
+        frequency: "Every 6h as needed for discomfort",
+        prescribedDate: "Sep 10, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "118/78",
+      hr: "72",
+      temp: "98.4",
+      spo2: "99",
+      weight: "62",
+      height: "168",
+    },
+    defaultChiefComplaint:
+      "Patient reports mild lingering sensitivity on lower left molar (#19) when drinking cold liquids after crown cementation.",
+    defaultDiagnosis:
+      "Transient postoperative dentinal hypersensitivity following crown placement on tooth #19.",
+    defaultTreatmentPlan:
+      "Apply topical desensitizing varnish in office. Continue prescribed desensitizing toothpaste twice daily. Recheck in 2 weeks.",
+  },
+  {
+    id: "P-9042",
+    name: "Marcus Brody",
+    age: 48,
+    gender: "Male",
+    bloodGroup: "O+",
+    allergies: ["Sulfa Drugs", "Shellfish"],
+    lastVisit: "Sep 08, 2026",
+    nextAppointment: {
+      date: "Oct 02, 2026",
+      time: "02:00 PM",
+      doctor: "Dr. Anita Roy",
+      type: "Cardiovascular Review",
+      room: "Suite 1A",
+    },
+    previousVisits: [
+      {
+        id: "v-201",
+        date: "Sep 08, 2026",
+        doctor: "Dr. Anita Roy",
+        department: "Cardiology",
+        notes:
+          "Resting BP 138/88 mmHg. Discussed sodium restriction and daily morning walking routine.",
+      },
+      {
+        id: "v-202",
+        date: "Jul 15, 2026",
+        doctor: "Dr. Suresh Patel",
+        department: "Internal Medicine",
+        notes:
+          "Lipid panel follow-up. LDL 132 mg/dL. Commenced low-dose statin therapy.",
+      },
+      {
+        id: "v-203",
+        date: "May 20, 2026",
+        doctor: "Dr. Anita Roy",
+        department: "Cardiology",
+        notes:
+          "Standard 12-lead ECG showed normal sinus rhythm without ischemic changes.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-3",
+        medication: "Lisinopril 20mg",
+        dosage: "1 tablet",
+        frequency: "Once daily in the morning",
+        prescribedDate: "Sep 08, 2026",
+      },
+      {
+        id: "am-4",
+        medication: "Atorvastatin 10mg",
+        dosage: "1 tablet",
+        frequency: "Once daily at bedtime",
+        prescribedDate: "Jul 15, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "134/84",
+      hr: "76",
+      temp: "98.6",
+      spo2: "98",
+      weight: "84",
+      height: "178",
+    },
+    defaultChiefComplaint:
+      "Routine hypertension follow-up. Occasional late afternoon tension headache, denies chest pain or shortness of breath.",
+    defaultDiagnosis:
+      "Essential Hypertension (Stage 1), stabilizing under ACE inhibitor therapy.",
+    defaultTreatmentPlan:
+      "Maintain Lisinopril 20mg daily. Log home blood pressure readings every morning. Next in-person evaluation in 4 weeks.",
+  },
+  {
+    id: "P-7619",
+    name: "Sarah Jenkins",
+    age: 29,
+    gender: "Female",
+    bloodGroup: "B+",
+    allergies: ["Penicillin", "Latex"],
+    lastVisit: "Sep 05, 2026",
+    nextAppointment: {
+      date: "Sep 28, 2026",
+      time: "11:15 AM",
+      doctor: "Dr. Anita Roy",
+      type: "Dermatology Check",
+      room: "Suite 2A",
+    },
+    previousVisits: [
+      {
+        id: "v-301",
+        date: "Sep 05, 2026",
+        doctor: "Dr. Anita Roy",
+        department: "Dermatology",
+        notes:
+          "Eczematous flare-up on right forearm. Prescribed topical hydrocortisone and ceramide barrier cream.",
+      },
+      {
+        id: "v-302",
+        date: "Jun 18, 2026",
+        doctor: "Dr. Anita Roy",
+        department: "Dermatology",
+        notes:
+          "Patch test panel completed. Negative for fragrance mix and nickel contact sensitivity.",
+      },
+      {
+        id: "v-303",
+        date: "Feb 10, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Practice",
+        notes:
+          "Annual comprehensive health screening. All baseline blood counts unremarkable.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-5",
+        medication: "Hydrocortisone Cream 2.5%",
+        dosage: "30g tube",
+        frequency: "Apply thin layer twice daily",
+        prescribedDate: "Sep 05, 2026",
+      },
+      {
+        id: "am-6",
+        medication: "Cetirizine 10mg",
+        dosage: "1 tablet",
+        frequency: "Once daily at bedtime as needed",
+        prescribedDate: "Sep 05, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "112/74",
+      hr: "74",
+      temp: "98.6",
+      spo2: "100",
+      weight: "58",
+      height: "165",
+    },
+    defaultChiefComplaint:
+      "Pruritic red rash on right forearm showing marked improvement, inquiring if topical steroid should be tapered.",
+    defaultDiagnosis:
+      "Resolving atopic dermatitis of right forearm; minimal residual xerosis.",
+    defaultTreatmentPlan:
+      "Step down from hydrocortisone 2.5% to unscented ceramide moisturizer twice daily. Continue oral antihistamine only if pruritus recurs.",
+  },
+  {
+    id: "P-6530",
+    name: "David Alvarez",
+    age: 52,
+    gender: "Male",
+    bloodGroup: "AB+",
+    allergies: ["Aspirin"],
+    lastVisit: "Aug 29, 2026",
+    nextAppointment: {
+      date: "Oct 12, 2026",
+      time: "09:00 AM",
+      doctor: "Dr. Suresh Patel",
+      type: "Endocrinology Review",
+      room: "Suite 4C",
+    },
+    previousVisits: [
+      {
+        id: "v-401",
+        date: "Aug 29, 2026",
+        doctor: "Dr. Suresh Patel",
+        department: "Endocrinology",
+        notes:
+          "HbA1c level measured at 6.8%. Excellent glycemic control maintained with oral biguanide.",
+      },
+      {
+        id: "v-402",
+        date: "May 14, 2026",
+        doctor: "Dr. Suresh Patel",
+        department: "Endocrinology",
+        notes:
+          "Comprehensive diabetic foot exam intact. Monofilament test normal in both feet.",
+      },
+      {
+        id: "v-403",
+        date: "Feb 02, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Medicine",
+        notes:
+          "Routine fasting blood sugar review. Advised 30 minutes daily aerobic physical activity.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-7",
+        medication: "Metformin 500mg",
+        dosage: "1 tablet",
+        frequency: "Twice daily with meals",
+        prescribedDate: "Aug 29, 2026",
+      },
+      {
+        id: "am-8",
+        medication: "Glimepiride 1mg",
+        dosage: "1 tablet",
+        frequency: "Once daily before breakfast",
+        prescribedDate: "Aug 29, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "124/82",
+      hr: "70",
+      temp: "98.5",
+      spo2: "99",
+      weight: "79",
+      height: "172",
+    },
+    defaultChiefComplaint:
+      "Quarterly diabetes follow-up. Mild right knee discomfort after brisk walks; fasting blood glucose averaging 115 mg/dL.",
+    defaultDiagnosis:
+      "Type 2 Diabetes Mellitus (well-controlled, latest HbA1c 6.8%); mild mechanical patellofemoral strain.",
+    defaultTreatmentPlan:
+      "Continue Metformin 500mg BID. Recommended low-impact cycling and quadriceps strengthening exercises.",
+  },
+  {
+    id: "P-5412",
+    name: "Amanda Hayes",
+    age: 41,
+    gender: "Female",
+    bloodGroup: "O-",
+    allergies: ["Codeine", "Sulfa"],
+    lastVisit: "Sep 01, 2026",
+    nextAppointment: {
+      date: "Oct 15, 2026",
+      time: "03:30 PM",
+      doctor: "Dr. Priya Desai",
+      type: "Orthodontic Evaluation",
+      room: "Suite 3A",
+    },
+    previousVisits: [
+      {
+        id: "v-501",
+        date: "Sep 01, 2026",
+        doctor: "Dr. Priya Desai",
+        department: "Orthodontics",
+        notes:
+          "Clear aligner tray #8 seated. Confirmed full incisor tracking; compliance reported at 22 hours/day.",
+      },
+      {
+        id: "v-502",
+        date: "Jul 22, 2026",
+        doctor: "Dr. Priya Desai",
+        department: "Orthodontics",
+        notes:
+          "Interproximal reduction of 0.2mm performed between lower incisors #24-#25.",
+      },
+      {
+        id: "v-503",
+        date: "May 10, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Dentistry",
+        notes:
+          "Routine scale and polish prior to initiation of orthodontic aligner sequence.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-9",
+        medication: "Acetaminophen 500mg",
+        dosage: "1 tablet",
+        frequency: "As needed for aligner pressure",
+        prescribedDate: "Sep 01, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "116/76",
+      hr: "68",
+      temp: "98.4",
+      spo2: "99",
+      weight: "64",
+      height: "167",
+    },
+    defaultChiefComplaint:
+      "Transitioned to aligner tray #9 three days ago. Reports localized pressure tenderness on anterior lower teeth during initial morning removal.",
+    defaultDiagnosis:
+      "Anticipated orthodontic physiologic tension on lower anterior dental arch.",
+    defaultTreatmentPlan:
+      "Instructed on continued use of silicone aligner chewies. Discomfort expected to subside within 48 hours. Advance to tray #10 in 11 days.",
+  },
+  {
+    id: "P-4328",
+    name: "Robert Chen",
+    age: 63,
+    gender: "Male",
+    bloodGroup: "A-",
+    allergies: ["Penicillin", "NSAIDs"],
+    lastVisit: "Aug 22, 2026",
+    nextAppointment: {
+      date: "Sep 30, 2026",
+      time: "04:00 PM",
+      doctor: "Dr. Rohan Mehra",
+      type: "Ophthalmology Check",
+      room: "Suite 1B",
+    },
+    previousVisits: [
+      {
+        id: "v-601",
+        date: "Aug 22, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Practice",
+        notes:
+          "Right hand osteoarthritis evaluation. Provided ergonomic jar opener recommendation and paraffin bath info.",
+      },
+      {
+        id: "v-602",
+        date: "Jun 04, 2026",
+        doctor: "Dr. Suresh Patel",
+        department: "Cardiology",
+        notes:
+          "24-hour ambulatory ECG recording revealed benign PVCs, no sustained tachycardia.",
+      },
+      {
+        id: "v-603",
+        date: "Mar 19, 2026",
+        doctor: "Dr. Rohan Mehra",
+        department: "General Practice",
+        notes:
+          "Senior preventive health wellness check. Administered annual seasonal influenza vaccination.",
+      },
+    ],
+    activeMedications: [
+      {
+        id: "am-10",
+        medication: "Amlodipine 5mg",
+        dosage: "1 tablet",
+        frequency: "Once daily in the morning",
+        prescribedDate: "Aug 22, 2026",
+      },
+      {
+        id: "am-11",
+        medication: "Acetaminophen 650mg ER",
+        dosage: "1 tablet",
+        frequency: "Twice daily as needed for joint stiffness",
+        prescribedDate: "Aug 22, 2026",
+      },
+    ],
+    defaultVitals: {
+      bp: "128/84",
+      hr: "66",
+      temp: "98.2",
+      spo2: "98",
+      weight: "74",
+      height: "174",
+    },
+    defaultChiefComplaint:
+      "Right thumb base (CMC joint) stiffness and mild swelling, particularly on waking and during handwriting tasks.",
+    defaultDiagnosis:
+      "Primary osteoarthritis of right first carpometacarpal joint and DIP joints; no acute inflammatory signs.",
+    defaultTreatmentPlan:
+      "Advised custom thumb spica splint for nighttime support. Warm water therapy and occupational hand exercises.",
+  },
+];
+
+interface PrescriptionRow {
+  id: string;
+  medication: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+interface LabFileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  reportType: string;
+  url: string;
+}
+
+interface VitalsState {
+  bp: string;
+  hr: string;
+  temp: string;
+  spo2: string;
+  weight: string;
+  height: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+export default function DiagnosisPage() {
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 1. Patient selection state
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("P-8821");
+
+  const currentPatient =
+    MOCK_PATIENTS.find((p) => p.id === selectedPatientId) ?? MOCK_PATIENTS[0];
+
+  // 2. Vitals state
+  const [vitals, setVitals] = useState<VitalsState>(currentPatient.defaultVitals);
+
+  // 3. Clinical assessment state
+  const [chiefComplaint, setChiefComplaint] = useState<string>(
+    currentPatient.defaultChiefComplaint
+  );
+  const [diagnosis, setDiagnosis] = useState<string>(
+    currentPatient.defaultDiagnosis
+  );
+  const [treatmentPlan, setTreatmentPlan] = useState<string>(
+    currentPatient.defaultTreatmentPlan
+  );
+
+  // 4. Prescriptions state
+  const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([
+    {
+      id: "rx-init-1",
+      medication: "Amoxicillin",
+      dosage: "500mg",
+      frequency: "3x daily",
+      duration: "5 days",
+      instructions: "Take 1 capsule with food and a full glass of water",
+    },
+    {
+      id: "rx-init-2",
+      medication: "Ibuprofen",
+      dosage: "400mg",
+      frequency: "As needed",
+      duration: "3 days",
+      instructions: "Take 1 tablet every 6 hours as needed for discomfort",
+    },
+  ]);
+
+  // 5. Lab files state
+  const [labFiles, setLabFiles] = useState<LabFileItem[]>([
+    {
+      id: "lab-sample-1",
+      name: "Periapical_Digital_XRay_19.jpg",
+      size: 2450000,
+      type: "image/jpeg",
+      reportType: "X-Ray",
+      url: "#",
+    },
+    {
+      id: "lab-sample-2",
+      name: "Comprehensive_Metabolic_Panel.pdf",
+      size: 1180000,
+      type: "application/pdf",
+      reportType: "Blood Test",
+      url: "#",
+    },
+  ]);
+
+  // 6. Saving / UI interaction state
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+
+  // When patient selection changes, load their baseline information
+  const handleSelectPatient = (newPatientId: string) => {
+    setSelectedPatientId(newPatientId);
+    const target = MOCK_PATIENTS.find((p) => p.id === newPatientId);
+    if (target) {
+      setVitals(target.defaultVitals);
+      setChiefComplaint(target.defaultChiefComplaint);
+      setDiagnosis(target.defaultDiagnosis);
+      setTreatmentPlan(target.defaultTreatmentPlan);
+    }
+  };
+
+  // Vitals update handler
+  const handleVitalChange = (field: keyof VitalsState, val: string) => {
+    setVitals((prev) => ({ ...prev, [field]: val }));
+  };
+
+  // Prescription table handlers
+  const handleAddPrescription = () => {
+    const newRow: PrescriptionRow = {
+      id: `rx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      medication: "",
+      dosage: "",
+      frequency: "Once daily",
+      duration: "7 days",
+      instructions: "",
+    };
+    setPrescriptions((prev) => [...prev, newRow]);
+  };
+
+  const handleUpdatePrescription = (
+    id: string,
+    field: keyof PrescriptionRow,
+    value: string
+  ) => {
+    setPrescriptions((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleRemovePrescription = (id: string) => {
+    setPrescriptions((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Lab reports handlers
+  const processFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const newEntries: LabFileItem[] = Array.from(fileList).map((file) => {
+      const lower = file.name.toLowerCase();
+      let defaultType = "Other";
+      if (
+        lower.includes("blood") ||
+        lower.includes("cbc") ||
+        lower.includes("panel") ||
+        lower.includes("lipid")
+      ) {
+        defaultType = "Blood Test";
+      } else if (lower.includes("xray") || lower.includes("x-ray")) {
+        defaultType = "X-Ray";
+      } else if (lower.includes("mri") || lower.includes("ct")) {
+        defaultType = "MRI/CT Scan";
+      } else if (lower.includes("urine") || lower.includes("urinalysis")) {
+        defaultType = "Urine Test";
+      } else if (lower.includes("ecg") || lower.includes("ekg")) {
+        defaultType = "ECG";
+      } else if (file.type.startsWith("image/")) {
+        defaultType = "X-Ray";
+      } else if (file.type === "application/pdf") {
+        defaultType = "Blood Test";
+      }
+
+      let objectUrl = "#";
+      try {
+        objectUrl = URL.createObjectURL(file);
+      } catch {
+        objectUrl = "#";
+      }
+
+      return {
+        id: `lab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: file.name,
+        size: file.size,
+        type: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
+        reportType: defaultType,
+        url: objectUrl,
+      };
+    });
+
+    setLabFiles((prev) => [...prev, ...newEntries]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(e.target.files);
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    if (e.dataTransfer.files) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleUpdateLabFileType = (id: string, reportType: string) => {
+    setLabFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, reportType } : f))
+    );
+  };
+
+  const handleRemoveLabFile = (id: string) => {
+    setLabFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  // Save handler
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setSavedSuccess(true);
+      setTimeout(() => {
+        setSavedSuccess(false);
+      }, 3000);
+    }, 1500);
+  };
+
+  // Initials for avatar
+  const patientInitials = currentPatient.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Top Floating Notification on Save */}
+      {savedSuccess && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-6 top-16 z-50 flex items-center gap-3 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-slate-900 shadow-xl shadow-teal-600/10 ring-1 ring-teal-500/20 animate-in fade-in slide-in-from-top-3 duration-300 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-100"
+        >
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-white shadow-xs">
+            <Check className="size-4 stroke-[3]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">
+              Visit Record Saved!
+            </p>
+            <p className="text-xs text-teal-700 dark:text-teal-300">
+              Clinical notes, vitals, and prescriptions saved for{" "}
+              <span className="font-semibold">{currentPatient.name}</span>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSavedSuccess(false)}
+            aria-label="Dismiss notification"
+            className="ml-2 rounded-md p-1 text-teal-700 hover:bg-teal-100 hover:text-teal-900 dark:text-teal-300 dark:hover:bg-teal-900"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PAGE HEADER */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20 ring-4 ring-blue-50 dark:ring-blue-950">
+            <Stethoscope className="size-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">
+                Diagnosis &amp; Visit Record
+              </h1>
+              <Badge
+                variant="outline"
+                className="hidden border-blue-200 bg-blue-50/50 text-[11px] font-medium text-blue-700 sm:inline-flex dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+              >
+                Dr. Session Active
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Document comprehensive examination findings, prescriptions, and diagnostic labs
+            </p>
+          </div>
+        </div>
+
+        {/* Patient Selector + Save Button */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Patient Selector dropdown */}
+          <div className="w-64 sm:w-72">
+            <Select
+              value={selectedPatientId}
+              onValueChange={handleSelectPatient}
+            >
+              <SelectTrigger className="h-10 border-slate-200 bg-slate-50 text-xs font-medium focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:focus:bg-slate-800">
+                <div className="flex items-center gap-2 truncate">
+                  <User className="size-3.5 text-slate-400" />
+                  <SelectValue placeholder="Select patient..." />
+                </div>
+              </SelectTrigger>
+              <SelectContent align="end" className="w-80">
+                {MOCK_PATIENTS.map((patient) => (
+                  <SelectItem key={patient.id} value={patient.id}>
+                    <div className="flex items-center justify-between gap-3 py-0.5">
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {patient.name}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        <Badge
+                          variant="secondary"
+                          className="h-4 bg-slate-100 px-1 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                        >
+                          {patient.id}
+                        </Badge>
+                        <span>
+                          {patient.age}y &bull; {patient.gender[0]}
+                        </span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Save Visit Record Primary Button */}
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-10 gap-2 bg-blue-600 px-4 font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.99] disabled:opacity-75 dark:bg-blue-600 dark:hover:bg-blue-500"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="size-4 animate-spin text-white" />
+                <span>Saving Record...</span>
+              </>
+            ) : (
+              <>
+                <Check className="size-4" />
+                <span>Save Visit Record</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Patient Selected Subheader Quick Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2.5 text-xs text-slate-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-slate-300">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="size-7 border border-blue-200 bg-white dark:border-blue-800">
+            <AvatarFallback className="bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+              {patientInitials}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {currentPatient.name}
+          </span>
+          <Badge
+            variant="outline"
+            className="border-blue-300 bg-white font-mono text-[10px] font-medium text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
+          >
+            {currentPatient.id}
+          </Badge>
+          <span className="text-slate-400 dark:text-slate-500">&bull;</span>
+          <span className="font-medium">
+            {currentPatient.age} years old &bull; {currentPatient.gender}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+            <Clock className="size-3 text-slate-400" />
+            <span>Last visit: {currentPatient.lastVisit}</span>
+          </div>
+          <Badge
+            variant="secondary"
+            className="border-teal-200 bg-teal-50 text-[10px] font-semibold text-teal-700 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300"
+          >
+            Blood Group: {currentPatient.bloodGroup}
+          </Badge>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2-COLUMN MAIN CONTENT LAYOUT */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* ======================================================================= */}
+        {/* LEFT COLUMN (col-span-2) - 4 Clinical Cards Stacked Vertically */}
+        {/* ======================================================================= */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD 1: VITAL SIGNS */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-4 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950 dark:text-teal-400">
+                    <Activity className="size-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      Vital Signs
+                    </CardTitle>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Triage vitals logged at patient check-in
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-emerald-200 bg-emerald-50 text-[11px] font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                >
+                  <span className="mr-1.5 size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Stable Vitals
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {/* Blood Pressure */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-bp"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Heart className="size-3.5 text-rose-500" />
+                      <span>Blood Pressure</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      mmHg
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-bp"
+                    type="text"
+                    value={vitals.bp}
+                    onChange={(e) => handleVitalChange("bp", e.target.value)}
+                    placeholder="120/80"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">Target: &lt;120/80 mmHg</p>
+                </div>
+
+                {/* Heart Rate */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-hr"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Activity className="size-3.5 text-blue-500" />
+                      <span>Heart Rate</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      bpm
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-hr"
+                    type="text"
+                    value={vitals.hr}
+                    onChange={(e) => handleVitalChange("hr", e.target.value)}
+                    placeholder="72"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">Normal resting: 60-100</p>
+                </div>
+
+                {/* Temperature */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-temp"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Thermometer className="size-3.5 text-amber-500" />
+                      <span>Temperature</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      &deg;F
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-temp"
+                    type="text"
+                    value={vitals.temp}
+                    onChange={(e) => handleVitalChange("temp", e.target.value)}
+                    placeholder="98.6"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">Normal: 97.8&deg;F - 99.1&deg;F</p>
+                </div>
+
+                {/* SpO2 */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-spo2"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Sparkles className="size-3.5 text-teal-500" />
+                      <span>Oxygen Sat (SpO2)</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      %
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-spo2"
+                    type="text"
+                    value={vitals.spo2}
+                    onChange={(e) => handleVitalChange("spo2", e.target.value)}
+                    placeholder="99"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">Normal range: 95-100%</p>
+                </div>
+
+                {/* Weight */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-weight"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Activity className="size-3.5 text-indigo-500" />
+                      <span>Weight</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      kg
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-weight"
+                    type="text"
+                    value={vitals.weight}
+                    onChange={(e) => handleVitalChange("weight", e.target.value)}
+                    placeholder="70"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    BMI approx:{" "}
+                    {Number(vitals.weight) && Number(vitals.height)
+                      ? (
+                          Number(vitals.weight) /
+                          Math.pow(Number(vitals.height) / 100, 2)
+                        ).toFixed(1)
+                      : "--"}
+                  </p>
+                </div>
+
+                {/* Height */}
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="vital-height"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      <Ruler className="size-3.5 text-cyan-500" />
+                      <span>Height</span>
+                    </label>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
+                      cm
+                    </span>
+                  </div>
+                  <Input
+                    id="vital-height"
+                    type="text"
+                    value={vitals.height}
+                    onChange={(e) => handleVitalChange("height", e.target.value)}
+                    placeholder="170"
+                    className="h-9 border-slate-200 bg-white text-sm font-semibold tracking-wide dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    {Number(vitals.height)
+                      ? `${Math.floor(Number(vitals.height) / 30.48)} ft ${Math.round(
+                          (Number(vitals.height) % 30.48) / 2.54
+                        )} in`
+                      : "--"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD 2: CHIEF COMPLAINT & CLINICAL ASSESSMENT */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-4 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                  <FileText className="size-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                    Clinical Assessment
+                  </CardTitle>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Subjective complaint, objective diagnosis, and physician treatment recommendations
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              {/* Chief Complaint */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="chief-complaint"
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Chief Complaint <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400">Patient&apos;s own words</span>
+                </div>
+                <Textarea
+                  id="chief-complaint"
+                  value={chiefComplaint}
+                  onChange={(e) => setChiefComplaint(e.target.value)}
+                  placeholder="Patient's main complaint..."
+                  className="min-h-[80px] border-slate-200 bg-white leading-relaxed focus:border-blue-500 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+
+              {/* Diagnosis */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="clinical-diagnosis"
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Diagnosis &amp; Clinical Findings <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400">ICD-10 / Clinical Impression</span>
+                </div>
+                <Textarea
+                  id="clinical-diagnosis"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  placeholder="Diagnosis and clinical findings..."
+                  className="min-h-[100px] border-slate-200 bg-white leading-relaxed focus:border-blue-500 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+
+              {/* Treatment Plan */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="treatment-plan"
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Treatment Plan &amp; Recommendations <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400">Next steps &amp; patient education</span>
+                </div>
+                <Textarea
+                  id="treatment-plan"
+                  value={treatmentPlan}
+                  onChange={(e) => setTreatmentPlan(e.target.value)}
+                  placeholder="Treatment plan and recommendations..."
+                  className="min-h-[100px] border-slate-200 bg-white leading-relaxed focus:border-blue-500 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD 3: PRESCRIPTIONS */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-4 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950 dark:text-teal-400">
+                    <Pill className="size-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      Prescriptions
+                    </CardTitle>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Medication orders, dosages, and administration guidelines
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddPrescription}
+                  className="h-8 gap-1.5 border-teal-200 text-xs font-semibold text-teal-700 hover:bg-teal-50 hover:text-teal-800 dark:border-teal-800 dark:text-teal-300 dark:hover:bg-teal-950"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add Medication</span>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/60">
+                      <TableHead className="w-[24%] min-w-[150px] text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Medication
+                      </TableHead>
+                      <TableHead className="w-[16%] min-w-[100px] text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Dosage
+                      </TableHead>
+                      <TableHead className="w-[18%] min-w-[130px] text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Frequency
+                      </TableHead>
+                      <TableHead className="w-[14%] min-w-[100px] text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Duration
+                      </TableHead>
+                      <TableHead className="w-[22%] min-w-[150px] text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Instructions
+                      </TableHead>
+                      <TableHead className="w-[6%] min-w-[40px] text-right" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {prescriptions.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="py-8 text-center text-xs text-slate-400"
+                        >
+                          No active medications added for this visit yet. Click &quot;+ Add Medication&quot; above.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      prescriptions.map((row, index) => (
+                        <TableRow key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
+                          {/* Medication Name */}
+                          <TableCell className="p-2.5">
+                            <Input
+                              type="text"
+                              value={row.medication}
+                              onChange={(e) =>
+                                handleUpdatePrescription(row.id, "medication", e.target.value)
+                              }
+                              placeholder="e.g. Amoxicillin"
+                              className="h-8 border-slate-200 bg-white text-xs font-medium dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </TableCell>
+
+                          {/* Dosage */}
+                          <TableCell className="p-2.5">
+                            <Input
+                              type="text"
+                              value={row.dosage}
+                              onChange={(e) =>
+                                handleUpdatePrescription(row.id, "dosage", e.target.value)
+                              }
+                              placeholder="e.g. 500mg"
+                              className="h-8 border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </TableCell>
+
+                          {/* Frequency Select */}
+                          <TableCell className="p-2.5">
+                            <Select
+                              value={row.frequency}
+                              onValueChange={(val) =>
+                                handleUpdatePrescription(row.id, "frequency", val)
+                              }
+                            >
+                              <SelectTrigger className="h-8 border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800">
+                                <SelectValue placeholder="Frequency" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Once daily">Once daily</SelectItem>
+                                <SelectItem value="Twice daily">Twice daily</SelectItem>
+                                <SelectItem value="3x daily">3x daily</SelectItem>
+                                <SelectItem value="As needed">As needed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+
+                          {/* Duration */}
+                          <TableCell className="p-2.5">
+                            <Input
+                              type="text"
+                              value={row.duration}
+                              onChange={(e) =>
+                                handleUpdatePrescription(row.id, "duration", e.target.value)
+                              }
+                              placeholder="e.g. 7 days"
+                              className="h-8 border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </TableCell>
+
+                          {/* Instructions */}
+                          <TableCell className="p-2.5">
+                            <Input
+                              type="text"
+                              value={row.instructions}
+                              onChange={(e) =>
+                                handleUpdatePrescription(row.id, "instructions", e.target.value)
+                              }
+                              placeholder="Take with meals..."
+                              className="h-8 border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          </TableCell>
+
+                          {/* Delete action */}
+                          <TableCell className="p-2.5 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemovePrescription(row.id)}
+                              className="size-8 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950 dark:hover:text-rose-400"
+                              title={`Remove prescription ${index + 1}`}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD 4: LAB REPORTS */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-4 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                    <FlaskConical className="size-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      Lab Reports &amp; Imaging
+                    </CardTitle>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Upload pathology results, X-rays, ECG tracings, or ultrasound scans
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {labFiles.length} {labFiles.length === 1 ? "report" : "reports"} attached
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-5">
+              {/* File Upload Drop Area */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragLeave={() => setIsDraggingFile(false)}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200",
+                  isDraggingFile
+                    ? "border-blue-500 bg-blue-50/80 ring-4 ring-blue-500/10 dark:bg-blue-950/40"
+                    : "border-slate-300 bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/30 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-blue-500"
+                )}
+              >
+                <input
+                  id={fileInputId}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
+                <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-slate-200 transition-transform duration-200 group-hover:scale-110 dark:bg-slate-800 dark:ring-slate-700">
+                  <Upload className="size-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  Drop files here or{" "}
+                  <span className="text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400">
+                    click to upload
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  PDF, JPG, PNG up to 10MB each
+                </p>
+              </div>
+
+              {/* Uploaded File List */}
+              {labFiles.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Attached Diagnostic Reports ({labFiles.length})
+                  </h2>
+                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+                    {labFiles.map((file) => {
+                      const isImage =
+                        file.type.startsWith("image/") ||
+                        file.name.match(/\.(jpg|jpeg|png)$/i);
+
+                      return (
+                        <div
+                          key={file.id}
+                          className="flex flex-col gap-3 p-3 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-slate-800/50"
+                        >
+                          {/* File Icon + Name + Size */}
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div
+                              className={cn(
+                                "flex size-9 shrink-0 items-center justify-center rounded-lg shadow-xs",
+                                isImage
+                                  ? "bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400"
+                                  : "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"
+                              )}
+                            >
+                              {isImage ? (
+                                <ImageIcon className="size-5" />
+                              ) : (
+                                <FileText className="size-5" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                {file.name}
+                              </p>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                <span>{formatFileSize(file.size)}</span>
+                                <span>&bull;</span>
+                                <span className="uppercase text-[10px] font-bold text-slate-400">
+                                  {file.name.split(".").pop()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Report Type Selector + Remove Button */}
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            <div className="w-36">
+                              <Select
+                                value={file.reportType}
+                                onValueChange={(val) =>
+                                  handleUpdateLabFileType(file.id, val)
+                                }
+                              >
+                                <SelectTrigger className="h-8 border-slate-200 bg-slate-50 text-xs dark:border-slate-700 dark:bg-slate-800">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="end">
+                                  <SelectItem value="Blood Test">Blood Test</SelectItem>
+                                  <SelectItem value="X-Ray">X-Ray</SelectItem>
+                                  <SelectItem value="MRI/CT Scan">MRI/CT Scan</SelectItem>
+                                  <SelectItem value="Urine Test">Urine Test</SelectItem>
+                                  <SelectItem value="ECG">ECG</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveLabFile(file.id)}
+                              className="size-8 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950 dark:hover:text-rose-400"
+                              title="Remove file"
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ======================================================================= */}
+        {/* RIGHT COLUMN (col-span-1) - Sidebar Cards */}
+        {/* ======================================================================= */}
+        <div className="space-y-6 lg:col-span-1">
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD A: PATIENT SUMMARY */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-3.5 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  Patient Summary
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-rose-200 bg-rose-50 font-bold text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                >
+                  Blood: {currentPatient.bloodGroup}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4 text-xs">
+              {/* Patient Basic Identity */}
+              <div className="flex items-center gap-3">
+                <Avatar className="size-12 border border-slate-200 shadow-xs">
+                  <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
+                    {patientInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
+                    {currentPatient.name}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                    <Badge
+                      variant="secondary"
+                      className="font-mono text-[10px] text-slate-700 dark:text-slate-300"
+                    >
+                      {currentPatient.id}
+                    </Badge>
+                    <span className="text-slate-400">&bull;</span>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {currentPatient.age} yrs, {currentPatient.gender}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+              {/* Last Visit & Allergies */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Last Visit</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {currentPatient.lastVisit}
+                  </span>
+                </div>
+
+                {/* Allergies Alert List */}
+                <div className="space-y-1">
+                  <span className="flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="size-3.5" />
+                    Documented Allergies
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {currentPatient.allergies.map((allergy) => (
+                      <Badge
+                        key={allergy}
+                        variant="destructive"
+                        className="rounded-md px-2 py-0.5 text-[11px] font-medium"
+                      >
+                        {allergy}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+              {/* Upcoming Appointment */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/60 dark:bg-blue-950/30">
+                <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300">
+                  <Calendar className="size-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    Upcoming Appointment
+                  </span>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <p className="font-bold text-slate-900 dark:text-slate-100">
+                    {currentPatient.nextAppointment.type}
+                  </p>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {currentPatient.nextAppointment.date} at{" "}
+                    {currentPatient.nextAppointment.time}
+                  </p>
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                    <span>{currentPatient.nextAppointment.doctor}</span>
+                    {currentPatient.nextAppointment.room && (
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
+                        {currentPatient.nextAppointment.room}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD B: PREVIOUS VISITS (LAST 3) */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-3.5 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  Previous Visits
+                </CardTitle>
+                <span className="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer">
+                  View Full History
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3.5 pt-4">
+              {currentPatient.previousVisits.slice(0, 3).map((visit, index) => (
+                <div
+                  key={visit.id}
+                  className={cn(
+                    "space-y-1 text-xs",
+                    index !== 0 && "border-t border-slate-100 pt-3 dark:border-slate-800"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {visit.date}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-slate-100 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                    >
+                      {visit.department}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    {visit.doctor}
+                  </p>
+                  <p className="line-clamp-2 text-slate-600 dark:text-slate-300">
+                    &quot;{visit.notes}&quot;
+                  </p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* ------------------------------------------------------------------- */}
+          {/* CARD C: ACTIVE MEDICATIONS */}
+          {/* ------------------------------------------------------------------- */}
+          <Card className="border-slate-200 shadow-xs dark:border-slate-800">
+            <CardHeader className="border-b border-slate-100 pb-3.5 dark:border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Pill className="size-4 text-teal-600 dark:text-teal-400" />
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Active Medications
+                  </CardTitle>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="bg-teal-50 text-[10px] font-semibold text-teal-700 dark:bg-teal-950 dark:text-teal-300"
+                >
+                  {currentPatient.activeMedications.length} Active
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-4 text-xs">
+              {currentPatient.activeMedications.length === 0 ? (
+                <p className="text-center text-xs text-slate-400">
+                  No active long-term medications recorded.
+                </p>
+              ) : (
+                currentPatient.activeMedications.map((med) => (
+                  <div
+                    key={med.id}
+                    className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-900/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-bold text-slate-900 dark:text-slate-100">
+                        {med.medication}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 border-teal-200 text-[10px] text-teal-700 dark:border-teal-800 dark:text-teal-300"
+                      >
+                        {med.dosage}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                      {med.frequency}
+                    </p>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Prescribed: {med.prescribedDate}
+                    </p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

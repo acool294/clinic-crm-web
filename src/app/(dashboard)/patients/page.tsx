@@ -66,6 +66,7 @@ import {
   Weight,
   Ruler,
   Printer,
+  ChevronDown,
 } from "lucide-react";
 
 export type PatientStatus = "active" | "inactive" | "new";
@@ -148,6 +149,12 @@ export interface Patient {
   visits: PastVisit[];
   prescriptions: Prescription[];
   invoices: Invoice[];
+  dob?: string;
+  address?: string;
+  bloodGroup?: string;
+  alternatePhone?: string;
+  insuranceProvider?: string;
+  isInsured?: boolean;
 }
 
 const INITIAL_PATIENTS: Patient[] = [
@@ -1580,6 +1587,16 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+function calculateAge(dob: string): number {
+  if (!dob) return 0;
+  const today = new Date();
+  const birth = new Date(dob);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 function PatientStatusBadge({ status }: { status: PatientStatus }) {
   switch (status) {
     case "active":
@@ -1677,13 +1694,20 @@ export default function PatientsPage() {
 
   // Add Patient Modal Form State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newPatientName, setNewPatientName] = useState("");
-  const [newPatientPhone, setNewPatientPhone] = useState("");
-  const [newPatientEmail, setNewPatientEmail] = useState("");
-  const [newPatientAge, setNewPatientAge] = useState("32");
-  const [newPatientGender, setNewPatientGender] = useState<"Female" | "Male" | "Other">("Female");
-  const [newPatientClinic, setNewPatientClinic] = useState("Downtown Wellness Clinic");
-  const [newPatientStatus, setNewPatientStatus] = useState<PatientStatus>("new");
+  const [newPatient, setNewPatient] = useState({
+    name: "",
+    dob: "",
+    gender: "",
+    phone: "",
+    address: "",
+    bloodGroup: "",
+    alternatePhone: "",
+    insuranceProvider: "",
+    isInsured: false,
+    email: "",
+  });
+  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Filtered patients based on search
   const filteredPatients = useMemo(() => {
@@ -1701,31 +1725,50 @@ export default function PatientsPage() {
 
   function handleCreatePatient(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!newPatientName.trim() || !newPatientPhone.trim() || !newPatientEmail.trim()) {
+    if (
+      !newPatient.name.trim() ||
+      !newPatient.dob ||
+      !newPatient.gender ||
+      !newPatient.phone.trim() ||
+      !newPatient.address.trim()
+    ) {
+      setFormError(
+        "Please fill in all mandatory fields: Full Name, Date of Birth, Gender, Phone Number, and Address."
+      );
       return;
     }
 
+    setFormError(null);
+    const calculatedAge = calculateAge(newPatient.dob);
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const newId = `P-${randomNum}`;
 
     const created: Patient = {
       id: newId,
-      name: newPatientName.trim(),
-      phone: newPatientPhone.trim(),
-      email: newPatientEmail.trim(),
+      name: newPatient.name.trim(),
+      phone: newPatient.phone.trim(),
+      email:
+        newPatient.email.trim() ||
+        `${newPatient.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
       lastVisit: new Date().toISOString().slice(0, 10),
       balance: 0,
-      status: newPatientStatus,
-      age: parseInt(newPatientAge, 10) || 30,
-      gender: newPatientGender,
-      clinics: [newPatientClinic],
+      status: "new",
+      age: calculatedAge >= 0 ? calculatedAge : 0,
+      gender: (newPatient.gender as "Female" | "Male" | "Other") || "Other",
+      clinics: ["Downtown Wellness Clinic"],
       nextAppointment: null,
       tags: [
         {
-          label: newPatientStatus === "new" ? "New Patient" : "Regular",
-          color: newPatientStatus === "new" ? "sky" : "blue",
+          label: "New Patient",
+          color: "sky",
         },
       ],
+      dob: newPatient.dob,
+      address: newPatient.address.trim(),
+      bloodGroup: newPatient.bloodGroup,
+      alternatePhone: newPatient.alternatePhone.trim(),
+      insuranceProvider: newPatient.isInsured ? newPatient.insuranceProvider : "",
+      isInsured: newPatient.isInsured,
       visits: [
         {
           id: `V-${randomNum}-1`,
@@ -1767,10 +1810,20 @@ export default function PatientsPage() {
     setIsAddDialogOpen(false);
 
     // Reset inputs
-    setNewPatientName("");
-    setNewPatientPhone("");
-    setNewPatientEmail("");
-    setNewPatientAge("32");
+    setNewPatient({
+      name: "",
+      dob: "",
+      gender: "",
+      phone: "",
+      address: "",
+      bloodGroup: "",
+      alternatePhone: "",
+      insuranceProvider: "",
+      isInsured: false,
+      email: "",
+    });
+    setShowAdditionalInfo(false);
+    setFormError(null);
   }
 
   return (
@@ -2373,156 +2426,335 @@ export default function PatientsPage() {
       </Sheet>
 
       {/* Add Patient Dialog Modal */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+      <Dialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) {
+            setFormError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-6">
+          <DialogHeader className="pb-2">
             <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              Add New Patient
+              Register New Patient
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Register a new patient into your clinic CRM database.
+              Register a new patient into your clinic CRM database. Mandatory fields are marked with an asterisk (*).
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreatePatient} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="patient-name"
-                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Full Name *
-              </label>
-              <Input
-                id="patient-name"
-                placeholder="e.g. Jessica Taylor"
-                value={newPatientName}
-                onChange={(e) => setNewPatientName(e.target.value)}
-                required
-                className="h-9 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="patient-phone"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Phone Number *
-                </label>
-                <Input
-                  id="patient-phone"
-                  placeholder="+91 98765 43210"
-                  value={newPatientPhone}
-                  onChange={(e) => setNewPatientPhone(e.target.value)}
-                  required
-                  className="h-9 text-sm font-mono"
-                />
+          <form
+            onSubmit={handleCreatePatient}
+            className="space-y-4 py-2 overflow-y-auto max-h-[80vh] pr-1"
+          >
+            {formError && (
+              <div className="flex items-center gap-2 p-3 text-xs font-medium text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-800">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>{formError}</span>
               </div>
+            )}
 
-              <div className="space-y-1.5">
+            {/* Mandatory Fields Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 1. Full Name */}
+              <div className="sm:col-span-2 space-y-1.5">
                 <label
-                  htmlFor="patient-email"
+                  htmlFor="patient-name"
                   className="text-xs font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  Email Address *
+                  Full Name <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  id="patient-email"
-                  type="email"
-                  placeholder="jessica@email.com"
-                  value={newPatientEmail}
-                  onChange={(e) => setNewPatientEmail(e.target.value)}
-                  required
-                  className="h-9 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="patient-age"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Age
-                </label>
-                <Input
-                  id="patient-age"
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={newPatientAge}
-                  onChange={(e) => setNewPatientAge(e.target.value)}
+                  id="patient-name"
+                  placeholder="e.g. Jessica Taylor"
+                  value={newPatient.name}
+                  onChange={(e) => {
+                    setNewPatient((prev) => ({ ...prev, name: e.target.value }));
+                    if (formError) setFormError(null);
+                  }}
                   className="h-9 text-sm"
                 />
               </div>
 
+              {/* 2. Date of Birth */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="patient-dob"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  id="patient-dob"
+                  type="date"
+                  value={newPatient.dob}
+                  onChange={(e) => {
+                    setNewPatient((prev) => ({ ...prev, dob: e.target.value }));
+                    if (formError) setFormError(null);
+                  }}
+                  className="h-9 text-sm"
+                />
+                {newPatient.dob && (
+                  <p className="text-xs text-muted-foreground">
+                    Age: {calculateAge(newPatient.dob)} years
+                  </p>
+                )}
+              </div>
+
+              {/* 3. Gender */}
               <div className="space-y-1.5">
                 <label
                   htmlFor="patient-gender"
                   className="text-xs font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  Gender
+                  Gender <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="patient-gender"
-                  value={newPatientGender}
-                  onChange={(e) =>
-                    setNewPatientGender(e.target.value as "Female" | "Male" | "Other")
-                  }
+                  value={newPatient.gender}
+                  onChange={(e) => {
+                    setNewPatient((prev) => ({ ...prev, gender: e.target.value }));
+                    if (formError) setFormError(null);
+                  }}
                   className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-slate-900"
                 >
-                  <option value="Female">Female</option>
+                  <option value="">Select Gender</option>
                   <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
+
+              {/* 4. Phone Number */}
+              <div className="sm:col-span-2 space-y-1.5">
+                <label
+                  htmlFor="patient-phone"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  id="patient-phone"
+                  placeholder="+91 XXXXX XXXXX"
+                  value={newPatient.phone}
+                  onChange={(e) => {
+                    setNewPatient((prev) => ({ ...prev, phone: e.target.value }));
+                    if (formError) setFormError(null);
+                  }}
+                  className="h-9 text-sm font-mono"
+                />
+              </div>
+
+              {/* 5. Address */}
+              <div className="sm:col-span-2 space-y-1.5">
+                <label
+                  htmlFor="patient-address"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="patient-address"
+                  rows={2}
+                  placeholder="Street address, City, State, PIN..."
+                  value={newPatient.address}
+                  onChange={(e) => {
+                    setNewPatient((prev) => ({ ...prev, address: e.target.value }));
+                    if (formError) setFormError(null);
+                  }}
+                  className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none dark:bg-input/30"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="patient-clinic"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Primary Linked Clinic
-                </label>
-                <select
-                  id="patient-clinic"
-                  value={newPatientClinic}
-                  onChange={(e) => setNewPatientClinic(e.target.value)}
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-slate-900"
-                >
-                  <option value="Downtown Wellness Clinic">Downtown Wellness Clinic</option>
-                  <option value="Metro Health Dental">Metro Health Dental</option>
-                  <option value="CareFirst Pediatrics & Family">
-                    CareFirst Pediatrics & Family
-                  </option>
-                  <option value="City Orthopedics">City Orthopedics</option>
-                </select>
-              </div>
+            {/* Optional Fields Collapsible Section */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdditionalInfo((prev) => !prev)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>Additional Information</span>
+                  <span className="text-[11px] font-normal text-muted-foreground">(Optional)</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-4 text-slate-500 transition-transform duration-200",
+                    showAdditionalInfo && "rotate-180"
+                  )}
+                />
+              </Button>
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="patient-status"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Initial Status
-                </label>
-                <select
-                  id="patient-status"
-                  value={newPatientStatus}
-                  onChange={(e) =>
-                    setNewPatientStatus(e.target.value as PatientStatus)
-                  }
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-slate-900"
-                >
-                  <option value="new">New</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+              {showAdditionalInfo && (
+                <div className="mt-3 space-y-4 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* 6. Blood Group */}
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor="patient-blood-group"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                      >
+                        Blood Group
+                      </label>
+                      <select
+                        id="patient-blood-group"
+                        value={newPatient.bloodGroup}
+                        onChange={(e) =>
+                          setNewPatient((prev) => ({
+                            ...prev,
+                            bloodGroup: e.target.value,
+                          }))
+                        }
+                        className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-slate-900"
+                      >
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
+
+                    {/* 7. Alternate Number */}
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor="patient-alternate-phone"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                      >
+                        Alternate Number
+                      </label>
+                      <Input
+                        id="patient-alternate-phone"
+                        placeholder="+91 XXXXX XXXXX"
+                        value={newPatient.alternatePhone}
+                        onChange={(e) =>
+                          setNewPatient((prev) => ({
+                            ...prev,
+                            alternatePhone: e.target.value,
+                          }))
+                        }
+                        className="h-9 text-sm font-mono"
+                      />
+                    </div>
+
+                    {/* 10. Email */}
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor="patient-email"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                      >
+                        Email Address
+                      </label>
+                      <Input
+                        id="patient-email"
+                        type="email"
+                        placeholder="jessica@email.com"
+                        value={newPatient.email}
+                        onChange={(e) =>
+                          setNewPatient((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                        className="h-9 text-sm"
+                      />
+                    </div>
+
+                    {/* 9. Insured - Toggle/Switch or Radio: Yes / No */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Insured
+                      </label>
+                      <div className="flex items-center gap-4 h-9">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                          <input
+                            type="radio"
+                            name="isInsured"
+                            value="no"
+                            checked={!newPatient.isInsured}
+                            onChange={() =>
+                              setNewPatient((prev) => ({
+                                ...prev,
+                                isInsured: false,
+                                insuranceProvider: "",
+                              }))
+                            }
+                            className="size-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                          />
+                          <span>No</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+                          <input
+                            type="radio"
+                            name="isInsured"
+                            value="yes"
+                            checked={newPatient.isInsured}
+                            onChange={() =>
+                              setNewPatient((prev) => ({
+                                ...prev,
+                                isInsured: true,
+                              }))
+                            }
+                            className="size-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                          />
+                          <span>Yes</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 8. Insurance Provider (If Yes, show insurance provider dropdown) */}
+                    {newPatient.isInsured && (
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <label
+                          htmlFor="patient-insurance-provider"
+                          className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                        >
+                          Insurance Provider
+                        </label>
+                        <select
+                          id="patient-insurance-provider"
+                          value={newPatient.insuranceProvider}
+                          onChange={(e) =>
+                            setNewPatient((prev) => ({
+                              ...prev,
+                              insuranceProvider: e.target.value,
+                            }))
+                          }
+                          className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-slate-900"
+                        >
+                          <option value="">Select Insurance Provider</option>
+                          {[
+                            "Star Health",
+                            "HDFC ERGO",
+                            "Niva Bupa",
+                            "ICICI Lombard",
+                            "United India",
+                            "New India Assurance",
+                            "Bajaj Allianz",
+                            "ManipalCigna",
+                            "Aditya Birla Health",
+                            "Other",
+                            "None",
+                          ].map((provider) => (
+                            <option key={provider} value={provider}>
+                              {provider}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="pt-3 sm:justify-end gap-2">

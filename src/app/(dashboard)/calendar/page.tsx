@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -505,6 +513,10 @@ function getInitialAppointments(): Appointment[] {
 const INITIAL_APPOINTMENTS: Appointment[] = getInitialAppointments();
 
 export default function CalendarPage() {
+  const { staffProfile } = useAuth();
+  const isDoctor = staffProfile?.role === "doctor";
+  const currentDoctorName = staffProfile?.name ?? "";
+
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
@@ -512,13 +524,22 @@ export default function CalendarPage() {
 
   // New Appointment Modal State
   const [isNewDialogOpen, setIsNewDialogOpen] = useState<boolean>(false);
-  const [newPatient, setNewPatient] = useState<string>("");
-  const [newDoctor, setNewDoctor] = useState<string>("Dr. Smith");
-  const [newDate, setNewDate] = useState<Date>(() => new Date());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [newTime, setNewTime] = useState<string>("09:00");
-  const [newDuration, setNewDuration] = useState<number>(30);
-  const [newType, setNewType] = useState<AppointmentType>("Consultation");
+  const [newAppt, setNewAppt] = useState({
+    patient: "",
+    doctor: "", // will be auto-set based on role
+    date: format(new Date(), "yyyy-MM-dd"),
+    time: "09:00",
+    duration: 30,
+    type: "Consultation" as AppointmentType,
+  });
+
+  useEffect(() => {
+    if (isDoctor && currentDoctorName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNewAppt((prev) => ({ ...prev, doctor: currentDoctorName }));
+    }
+  }, [isDoctor, currentDoctorName]);
 
   // Reschedule Modal State
   const [isRescheduleOpen, setIsRescheduleOpen] = useState<boolean>(false);
@@ -670,16 +691,16 @@ export default function CalendarPage() {
 
   const handleCreateAppointment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPatient.trim()) return;
+    if (!newAppt.patient.trim()) return;
 
     const newApt: Appointment = {
       id: String(Date.now()),
-      patient: newPatient.trim(),
-      date: format(newDate, "yyyy-MM-dd"),
-      time: newTime,
-      duration: Number(newDuration),
-      type: newType,
-      doctor: newDoctor,
+      patient: newAppt.patient.trim(),
+      date: newAppt.date,
+      time: newAppt.time,
+      duration: Number(newAppt.duration),
+      type: newAppt.type,
+      doctor: newAppt.doctor || (isDoctor && currentDoctorName ? currentDoctorName : "Dr. Smith"),
       status: "scheduled",
     };
 
@@ -688,12 +709,14 @@ export default function CalendarPage() {
     setIsNewDialogOpen(false);
 
     // Reset Form
-    setNewPatient("");
-    setNewDate(new Date());
-    setNewTime("09:00");
-    setNewDuration(30);
-    setNewType("Consultation");
-    setNewDoctor("Dr. Smith");
+    setNewAppt({
+      patient: "",
+      doctor: isDoctor && currentDoctorName ? currentDoctorName : "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: "09:00",
+      duration: 30,
+      type: "Consultation" as AppointmentType,
+    });
   };
 
   return (
@@ -804,7 +827,11 @@ export default function CalendarPage() {
           {/* New Appointment Button */}
           <Button
             onClick={() => {
-              setNewDate(currentDate);
+              setNewAppt((prev) => ({
+                ...prev,
+                date: format(currentDate, "yyyy-MM-dd"),
+                ...(isDoctor && currentDoctorName ? { doctor: currentDoctorName } : {}),
+              }));
               setIsNewDialogOpen(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm gap-1.5 cursor-pointer ml-auto sm:ml-0"
@@ -1470,26 +1497,39 @@ export default function CalendarPage() {
               <Input
                 required
                 placeholder="e.g. Clara Oswald"
-                value={newPatient}
-                onChange={(e) => setNewPatient(e.target.value)}
+                value={newAppt.patient}
+                onChange={(e) => setNewAppt((prev) => ({ ...prev, patient: e.target.value }))}
                 className="h-9"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">
-                  Doctor
-                </label>
-                <select
-                  value={newDoctor}
-                  onChange={(e) => setNewDoctor(e.target.value)}
-                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="Dr. Smith">Dr. Smith</option>
-                  <option value="Dr. Patel">Dr. Patel</option>
-                  <option value="Dr. Adams">Dr. Adams</option>
-                </select>
+              <div>
+                <label className="text-sm font-medium">Doctor *</label>
+                {isDoctor ? (
+                  // Doctor sees their own name, cannot change it
+                  <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-sm font-medium text-blue-700">{currentDoctorName}</span>
+                    <span className="text-xs text-blue-500 ml-auto">(Your appointments)</span>
+                  </div>
+                ) : (
+                  // Receptionist/admin sees all doctors dropdown
+                  <Select
+                    value={newAppt.doctor}
+                    onValueChange={(v) => setNewAppt(prev => ({ ...prev, doctor: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select doctor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Dr. Smith">Dr. Smith — General Medicine</SelectItem>
+                      <SelectItem value="Dr. Patel">Dr. Patel — Dermatology</SelectItem>
+                      <SelectItem value="Dr. Anita Patel">Dr. Anita Patel — Dermatology</SelectItem>
+                      <SelectItem value="Dr. Rajesh Smith">Dr. Rajesh Smith — General Medicine</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -1497,8 +1537,8 @@ export default function CalendarPage() {
                   Type
                 </label>
                 <select
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value as AppointmentType)}
+                  value={newAppt.type}
+                  onChange={(e) => setNewAppt((prev) => ({ ...prev, type: e.target.value as AppointmentType }))}
                   className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
                 >
                   <option value="Consultation">Consultation</option>
@@ -1521,21 +1561,21 @@ export default function CalendarPage() {
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal h-9 text-xs cursor-pointer border-slate-200",
-                        !newDate && "text-muted-foreground"
+                        !newAppt.date && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 size-3.5 text-slate-500" />
-                      {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
+                      {newAppt.date ? format(parseDateString(newAppt.date), "PPP") : <span>Pick a date</span>}
                     </Button>
                   }
                 />
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={newDate}
+                    selected={parseDateString(newAppt.date)}
                     onSelect={(date) => {
                       if (date) {
-                        setNewDate(date);
+                        setNewAppt((prev) => ({ ...prev, date: format(date, "yyyy-MM-dd") }));
                         setIsDatePickerOpen(false);
                       }
                     }}
@@ -1551,8 +1591,8 @@ export default function CalendarPage() {
                   Time Slot
                 </label>
                 <select
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
+                  value={newAppt.time}
+                  onChange={(e) => setNewAppt((prev) => ({ ...prev, time: e.target.value }))}
                   className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
                 >
                   <option value="08:00">08:00 AM</option>
@@ -1581,8 +1621,8 @@ export default function CalendarPage() {
                   Duration
                 </label>
                 <select
-                  value={newDuration}
-                  onChange={(e) => setNewDuration(Number(e.target.value))}
+                  value={newAppt.duration}
+                  onChange={(e) => setNewAppt((prev) => ({ ...prev, duration: Number(e.target.value) }))}
                   className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
                 >
                   <option value={30}>30 mins</option>
