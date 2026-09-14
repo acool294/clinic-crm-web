@@ -34,7 +34,6 @@ export async function fetchPatients(): Promise<PatientRow[]> {
 export async function createPatient(
   input: Omit<PatientRow, 'id' | 'auth_user_id' | 'created_at'>
 ): Promise<PatientRow> {
-  // Get the current staff's clinic_id
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
@@ -43,23 +42,27 @@ export async function createPatient(
 
   const clinicId: string = (staffData as { clinic_id: string }).clinic_id;
 
-  // Insert patient
-  const { data: patient, error: patientError } = await supabase
-    .from('patients')
-    .insert(input)
-    .select()
-    .single();
-  if (patientError || !patient) throw patientError ?? new Error('Failed to create patient');
+  // Generate UUID client-side to avoid RLS select() blocking before link is created
+  const newId = crypto.randomUUID();
 
-  const patientRow = patient as PatientRow;
+  // Insert patient WITHOUT .select()
+  const { error: patientError } = await supabase
+    .from('patients')
+    .insert({ id: newId, ...input });
+  if (patientError) throw patientError;
 
   // Link patient to clinic
   const { error: linkError } = await supabase
     .from('clinic_patient_links')
-    .insert({ patient_id: patientRow.id, clinic_id: clinicId });
+    .insert({ patient_id: newId, clinic_id: clinicId });
   if (linkError) throw linkError;
 
-  return patientRow;
+  return {
+    id: newId,
+    auth_user_id: null,
+    created_at: new Date().toISOString(),
+    ...input
+  };
 }
 
 /** Update a patient record */

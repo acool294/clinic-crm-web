@@ -146,7 +146,7 @@ export default function DashboardPage() {
     pendingInvoices: 0,
     outstandingAmount: 0,
     newPatientsThisMonth: 0,
-    staffCount: 0,
+    staffCount: 0, severeAlerts: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -476,7 +476,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl sm:text-3xl font-bold tracking-tight text-red-950 dark:text-red-100">
-              1
+              {statsLoading ? <Skeleton className="h-8 w-16" /> : stats.severeAlerts}
             </div>
             <p className="text-xs font-medium text-red-700 dark:text-red-300 mt-1 flex items-center gap-1">
               <span>Requires attention</span>

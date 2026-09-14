@@ -204,13 +204,14 @@ export async function fetchDashboardStats(): Promise<{
   outstandingAmount: number;
   newPatientsThisMonth: number;
   staffCount: number;
+  severeAlerts: number;
 }> {
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
-  const [apptRes, invoiceRes, patientsRes, staffRes] = await Promise.all([
+  const [apptRes, invoiceRes, patientsRes, staffRes, alertsRes] = await Promise.all([
     supabase
       .from('appointments')
       .select('id', { count: 'exact', head: true })
@@ -227,6 +228,10 @@ export async function fetchDashboardStats(): Promise<{
     supabase
       .from('staff_users')
       .select('id', { count: 'exact', head: true }),
+    supabase
+      .from('medication_feedback')
+      .select('id', { count: 'exact', head: true })
+      .eq('escalated_to_doctor', true),
   ]);
 
   const invoices = (invoiceRes.data ?? []) as { amount: number; paid: number }[];
@@ -238,5 +243,6 @@ export async function fetchDashboardStats(): Promise<{
     outstandingAmount: outstanding,
     newPatientsThisMonth: patientsRes.count ?? 0,
     staffCount: staffRes.count ?? 0,
+    severeAlerts: alertsRes?.count ?? 0,
   };
 }
