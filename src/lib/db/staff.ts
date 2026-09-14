@@ -63,9 +63,12 @@ export async function saveVisitRecord(input: {
   vitals?: Record<string, string>;
   prescriptions?: { medication: string; dosage: string }[];
 }): Promise<VisitRecordRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
+    .eq('id', user.id)
     .single();
   if (staffError || !staffData) throw staffError ?? new Error('Could not get clinic');
   const clinicId = (staffData as { clinic_id: string }).clinic_id;
@@ -170,7 +173,8 @@ export async function uploadLabReport(
   visitRecordId: string,
   reportType: string
 ): Promise<void> {
-  const { data: staffData } = await supabase.from('staff_users').select('id, clinic_id').single();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: staffData } = await supabase.from('staff_users').select('id, clinic_id').eq('id', user?.id).single();
   if (!staffData) throw new Error('Could not get clinic');
 
   const fileExt = file.name.split('.').pop();

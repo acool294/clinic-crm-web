@@ -63,9 +63,12 @@ export async function createInvoice(input: {
   amount: number;
   notes?: string;
 }): Promise<InvoiceRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
+    .eq('id', user.id)
     .single();
   if (staffError || !staffData) throw staffError ?? new Error('Could not get clinic');
 
@@ -90,9 +93,12 @@ export async function recordPayment(input: {
   method: string;
   staff_id: string;
 }): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
+    .eq('id', user.id)
     .single();
   if (staffError || !staffData) throw staffError ?? new Error('Could not get clinic');
 

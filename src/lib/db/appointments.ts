@@ -57,9 +57,12 @@ export async function createAppointment(input: {
   duration_minutes: number;
   appointment_type?: string;
 }): Promise<AppointmentRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
+    .eq('id', user.id)
     .single();
   if (staffError || !staffData) throw staffError ?? new Error('Could not get clinic');
 

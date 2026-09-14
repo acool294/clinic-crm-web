@@ -34,9 +34,12 @@ export async function fetchPatients(): Promise<PatientRow[]> {
 export async function createPatient(
   input: Omit<PatientRow, 'id' | 'auth_user_id' | 'created_at'>
 ): Promise<PatientRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: staffData, error: staffError } = await supabase
     .from('staff_users')
     .select('clinic_id')
+    .eq('id', user.id)
     .single();
   if (staffError || !staffData) throw staffError ?? new Error('Could not get clinic');
 
