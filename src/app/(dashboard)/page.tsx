@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchDashboardStats } from "@/lib/db/staff";
+import { fetchAppointments } from "@/lib/db/appointments";
+import { supabase } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -89,138 +91,7 @@ interface ActivityItem {
   timestamp: string;
 }
 
-const INITIAL_APPOINTMENTS: PatientAppointment[] = [
-  {
-    id: "apt-1",
-    time: "09:00 AM",
-    room: "Exam 3A",
-    patientName: "Eleanor Vance",
-    mrn: "MRN-10482",
-    age: 46,
-    gender: "Female",
-    dob: "11/14/1979",
-    phone: "(555) 234-8901",
-    email: "eleanor.vance@example.com",
-    insurance: "BlueCross BlueShield PPO",
-    type: "Annual Physical",
-    status: "In Progress",
-    vitals: {
-      bp: "122/80",
-      hr: 72,
-      temp: "98.6°F",
-      spo2: 99,
-      bmi: 24.2,
-    },
-    diagnoses: ["Hyperlipidemia", "Mild Osteoarthritis"],
-    medications: ["Atorvastatin 20mg daily", "Vitamin D3 2000 IU"],
-    allergies: ["Penicillin (Hives)", "Sulfa drugs"],
-    notes: "Patient here for comprehensive annual wellness exam. Fasting labs completed yesterday.",
-  },
-  {
-    id: "apt-2",
-    time: "09:45 AM",
-    room: "Exam 2B",
-    patientName: "Robert Chen",
-    mrn: "MRN-10394",
-    age: 58,
-    gender: "Male",
-    dob: "04/08/1968",
-    phone: "(555) 345-9012",
-    email: "rchen.architect@example.com",
-    insurance: "Aetna Choice POS II",
-    type: "Hypertension Follow-up",
-    status: "Checked In",
-    vitals: {
-      bp: "138/88",
-      hr: 78,
-      temp: "98.4°F",
-      spo2: 97,
-      bmi: 27.5,
-    },
-    diagnoses: ["Essential Hypertension", "Type 2 Diabetes"],
-    medications: ["Lisinopril 20mg", "Metformin 500mg BID"],
-    allergies: ["No Known Drug Allergies (NKDA)"],
-    notes: "Checking blood pressure response after increasing Lisinopril dosage 4 weeks ago.",
-  },
-  {
-    id: "apt-3",
-    time: "10:30 AM",
-    room: "Exam 1A",
-    patientName: "Maria Rodriguez",
-    mrn: "MRN-10819",
-    age: 34,
-    gender: "Female",
-    dob: "07/22/1992",
-    phone: "(555) 456-0123",
-    email: "m.rodriguez@example.com",
-    insurance: "UnitedHealthcare Choice Plus",
-    type: "Dermatology Consult",
-    status: "Confirmed",
-    vitals: {
-      bp: "116/74",
-      hr: 68,
-      temp: "98.7°F",
-      spo2: 100,
-      bmi: 22.8,
-    },
-    diagnoses: ["Contact Dermatitis", "Atopic Eczema"],
-    medications: ["Hydrocortisone 2.5% topical", "Cetirizine 10mg PRN"],
-    allergies: ["Latex (Contact dermatitis)"],
-    notes: "Follow-up on skin lesion biopsy and evaluation of persistent forearm rash.",
-  },
-  {
-    id: "apt-4",
-    time: "11:15 AM",
-    room: "Exam 4",
-    patientName: "James Patterson",
-    mrn: "MRN-10255",
-    age: 62,
-    gender: "Male",
-    dob: "02/19/1964",
-    phone: "(555) 567-1234",
-    email: "jpatterson@example.com",
-    insurance: "Medicare Part B + Humana",
-    type: "Lab Results Review",
-    status: "Scheduled",
-    vitals: {
-      bp: "128/82",
-      hr: 74,
-      temp: "98.5°F",
-      spo2: 98,
-      bmi: 26.1,
-    },
-    diagnoses: ["Pre-diabetes", "Elevated Liver Enzymes"],
-    medications: ["Omega-3 Fish Oil 1000mg"],
-    allergies: ["Ciprofloxacin (Tendonitis)"],
-    notes: "Review comprehensive metabolic panel and lipid panel drawn last week.",
-  },
-  {
-    id: "apt-5",
-    time: "01:30 PM",
-    room: "Exam 2A",
-    patientName: "Sophia Al-Mansoor",
-    mrn: "MRN-10902",
-    age: 29,
-    gender: "Female",
-    dob: "09/03/1997",
-    phone: "(555) 678-2345",
-    email: "sophia.almansoor@example.com",
-    insurance: "Cigna Open Access Plus",
-    type: "Post-Op Evaluation",
-    status: "Confirmed",
-    vitals: {
-      bp: "112/70",
-      hr: 65,
-      temp: "98.6°F",
-      spo2: 99,
-      bmi: 21.4,
-    },
-    diagnoses: ["Post-Laparoscopic Cholecystectomy (Day 14)"],
-    medications: ["Acetaminophen 500mg PRN"],
-    allergies: ["Codeine (Nausea/Vomiting)"],
-    notes: "Two-week postoperative wound inspection and clearance for return to light cardio exercise.",
-  },
-];
+
 
 const INITIAL_ACTIVITIES: ActivityItem[] = [
   {
@@ -262,9 +133,10 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
 
 export default function DashboardPage() {
   const { staffProfile } = useAuth();
-  const [appointments, setAppointments] = useState<PatientAppointment[]>(INITIAL_APPOINTMENTS);
-  const [activities] = useState<ActivityItem[]>(INITIAL_ACTIVITIES);
-  const [selectedPatient, setSelectedPatient] = useState<PatientAppointment | null>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loadingAppts, setLoadingAppts] = useState(true);
+    const [selectedPatient, setSelectedPatient] = useState<PatientAppointment | null>(null);
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -682,7 +554,7 @@ export default function DashboardPage() {
                             <AvatarFallback className="text-[11px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                               {apt.patientName
                                 .split(" ")
-                                .map((n) => n[0])
+                                .map((n: string) => n[0])
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
@@ -804,7 +676,7 @@ export default function DashboardPage() {
                       <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-sm">
                         {selectedPatient.patientName
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>

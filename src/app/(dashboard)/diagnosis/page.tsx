@@ -97,433 +97,7 @@ interface MockPatient {
   defaultTreatmentPlan: string;
 }
 
-const MOCK_PATIENTS: MockPatient[] = [
-  {
-    id: "P-8821",
-    name: "Eleanor Vance",
-    age: 34,
-    gender: "Female",
-    bloodGroup: "A+",
-    allergies: ["Penicillin", "Dust"],
-    lastVisit: "Sep 10, 2026",
-    nextAppointment: {
-      date: "Sep 24, 2026",
-      time: "10:30 AM",
-      doctor: "Dr. Priya Desai",
-      type: "Root Canal Follow-up",
-      room: "Suite 3B",
-    },
-    previousVisits: [
-      {
-        id: "v-101",
-        date: "Sep 10, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Endodontics",
-        notes:
-          "Crown fitting completed smoothly. Mild sensitivity reported; prescribed desensitizing gel.",
-      },
-      {
-        id: "v-102",
-        date: "Aug 14, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Dentistry",
-        notes:
-          "Routine checkup and cleaning. Identified early decay on tooth #14.",
-      },
-      {
-        id: "v-103",
-        date: "Jun 02, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Endodontics",
-        notes:
-          "Root canal obturation completed on tooth #19. Temporary composite restoration placed.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-1",
-        medication: "Amoxicillin 500mg",
-        dosage: "1 capsule",
-        frequency: "3x daily with meals (5 days)",
-        prescribedDate: "Sep 10, 2026",
-      },
-      {
-        id: "am-2",
-        medication: "Ibuprofen 400mg",
-        dosage: "1 tablet",
-        frequency: "Every 6h as needed for discomfort",
-        prescribedDate: "Sep 10, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "118/78",
-      hr: "72",
-      temp: "98.4",
-      spo2: "99",
-      weight: "62",
-      height: "168",
-    },
-    defaultChiefComplaint:
-      "Patient reports mild lingering sensitivity on lower left molar (#19) when drinking cold liquids after crown cementation.",
-    defaultDiagnosis:
-      "Transient postoperative dentinal hypersensitivity following crown placement on tooth #19.",
-    defaultTreatmentPlan:
-      "Apply topical desensitizing varnish in office. Continue prescribed desensitizing toothpaste twice daily. Recheck in 2 weeks.",
-  },
-  {
-    id: "P-9042",
-    name: "Marcus Brody",
-    age: 48,
-    gender: "Male",
-    bloodGroup: "O+",
-    allergies: ["Sulfa Drugs", "Shellfish"],
-    lastVisit: "Sep 08, 2026",
-    nextAppointment: {
-      date: "Oct 02, 2026",
-      time: "02:00 PM",
-      doctor: "Dr. Anita Roy",
-      type: "Cardiovascular Review",
-      room: "Suite 1A",
-    },
-    previousVisits: [
-      {
-        id: "v-201",
-        date: "Sep 08, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Cardiology",
-        notes:
-          "Resting BP 138/88 mmHg. Discussed sodium restriction and daily morning walking routine.",
-      },
-      {
-        id: "v-202",
-        date: "Jul 15, 2026",
-        doctor: "Dr. Suresh Patel",
-        department: "Internal Medicine",
-        notes:
-          "Lipid panel follow-up. LDL 132 mg/dL. Commenced low-dose statin therapy.",
-      },
-      {
-        id: "v-203",
-        date: "May 20, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Cardiology",
-        notes:
-          "Standard 12-lead ECG showed normal sinus rhythm without ischemic changes.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-3",
-        medication: "Lisinopril 20mg",
-        dosage: "1 tablet",
-        frequency: "Once daily in the morning",
-        prescribedDate: "Sep 08, 2026",
-      },
-      {
-        id: "am-4",
-        medication: "Atorvastatin 10mg",
-        dosage: "1 tablet",
-        frequency: "Once daily at bedtime",
-        prescribedDate: "Jul 15, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "134/84",
-      hr: "76",
-      temp: "98.6",
-      spo2: "98",
-      weight: "84",
-      height: "178",
-    },
-    defaultChiefComplaint:
-      "Routine hypertension follow-up. Occasional late afternoon tension headache, denies chest pain or shortness of breath.",
-    defaultDiagnosis:
-      "Essential Hypertension (Stage 1), stabilizing under ACE inhibitor therapy.",
-    defaultTreatmentPlan:
-      "Maintain Lisinopril 20mg daily. Log home blood pressure readings every morning. Next in-person evaluation in 4 weeks.",
-  },
-  {
-    id: "P-7619",
-    name: "Sarah Jenkins",
-    age: 29,
-    gender: "Female",
-    bloodGroup: "B+",
-    allergies: ["Penicillin", "Latex"],
-    lastVisit: "Sep 05, 2026",
-    nextAppointment: {
-      date: "Sep 28, 2026",
-      time: "11:15 AM",
-      doctor: "Dr. Anita Roy",
-      type: "Dermatology Check",
-      room: "Suite 2A",
-    },
-    previousVisits: [
-      {
-        id: "v-301",
-        date: "Sep 05, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Dermatology",
-        notes:
-          "Eczematous flare-up on right forearm. Prescribed topical hydrocortisone and ceramide barrier cream.",
-      },
-      {
-        id: "v-302",
-        date: "Jun 18, 2026",
-        doctor: "Dr. Anita Roy",
-        department: "Dermatology",
-        notes:
-          "Patch test panel completed. Negative for fragrance mix and nickel contact sensitivity.",
-      },
-      {
-        id: "v-303",
-        date: "Feb 10, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes:
-          "Annual comprehensive health screening. All baseline blood counts unremarkable.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-5",
-        medication: "Hydrocortisone Cream 2.5%",
-        dosage: "30g tube",
-        frequency: "Apply thin layer twice daily",
-        prescribedDate: "Sep 05, 2026",
-      },
-      {
-        id: "am-6",
-        medication: "Cetirizine 10mg",
-        dosage: "1 tablet",
-        frequency: "Once daily at bedtime as needed",
-        prescribedDate: "Sep 05, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "112/74",
-      hr: "74",
-      temp: "98.6",
-      spo2: "100",
-      weight: "58",
-      height: "165",
-    },
-    defaultChiefComplaint:
-      "Pruritic red rash on right forearm showing marked improvement, inquiring if topical steroid should be tapered.",
-    defaultDiagnosis:
-      "Resolving atopic dermatitis of right forearm; minimal residual xerosis.",
-    defaultTreatmentPlan:
-      "Step down from hydrocortisone 2.5% to unscented ceramide moisturizer twice daily. Continue oral antihistamine only if pruritus recurs.",
-  },
-  {
-    id: "P-6530",
-    name: "David Alvarez",
-    age: 52,
-    gender: "Male",
-    bloodGroup: "AB+",
-    allergies: ["Aspirin"],
-    lastVisit: "Aug 29, 2026",
-    nextAppointment: {
-      date: "Oct 12, 2026",
-      time: "09:00 AM",
-      doctor: "Dr. Suresh Patel",
-      type: "Endocrinology Review",
-      room: "Suite 4C",
-    },
-    previousVisits: [
-      {
-        id: "v-401",
-        date: "Aug 29, 2026",
-        doctor: "Dr. Suresh Patel",
-        department: "Endocrinology",
-        notes:
-          "HbA1c level measured at 6.8%. Excellent glycemic control maintained with oral biguanide.",
-      },
-      {
-        id: "v-402",
-        date: "May 14, 2026",
-        doctor: "Dr. Suresh Patel",
-        department: "Endocrinology",
-        notes:
-          "Comprehensive diabetic foot exam intact. Monofilament test normal in both feet.",
-      },
-      {
-        id: "v-403",
-        date: "Feb 02, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Medicine",
-        notes:
-          "Routine fasting blood sugar review. Advised 30 minutes daily aerobic physical activity.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-7",
-        medication: "Metformin 500mg",
-        dosage: "1 tablet",
-        frequency: "Twice daily with meals",
-        prescribedDate: "Aug 29, 2026",
-      },
-      {
-        id: "am-8",
-        medication: "Glimepiride 1mg",
-        dosage: "1 tablet",
-        frequency: "Once daily before breakfast",
-        prescribedDate: "Aug 29, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "124/82",
-      hr: "70",
-      temp: "98.5",
-      spo2: "99",
-      weight: "79",
-      height: "172",
-    },
-    defaultChiefComplaint:
-      "Quarterly diabetes follow-up. Mild right knee discomfort after brisk walks; fasting blood glucose averaging 115 mg/dL.",
-    defaultDiagnosis:
-      "Type 2 Diabetes Mellitus (well-controlled, latest HbA1c 6.8%); mild mechanical patellofemoral strain.",
-    defaultTreatmentPlan:
-      "Continue Metformin 500mg BID. Recommended low-impact cycling and quadriceps strengthening exercises.",
-  },
-  {
-    id: "P-5412",
-    name: "Amanda Hayes",
-    age: 41,
-    gender: "Female",
-    bloodGroup: "O-",
-    allergies: ["Codeine", "Sulfa"],
-    lastVisit: "Sep 01, 2026",
-    nextAppointment: {
-      date: "Oct 15, 2026",
-      time: "03:30 PM",
-      doctor: "Dr. Priya Desai",
-      type: "Orthodontic Evaluation",
-      room: "Suite 3A",
-    },
-    previousVisits: [
-      {
-        id: "v-501",
-        date: "Sep 01, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Orthodontics",
-        notes:
-          "Clear aligner tray #8 seated. Confirmed full incisor tracking; compliance reported at 22 hours/day.",
-      },
-      {
-        id: "v-502",
-        date: "Jul 22, 2026",
-        doctor: "Dr. Priya Desai",
-        department: "Orthodontics",
-        notes:
-          "Interproximal reduction of 0.2mm performed between lower incisors #24-#25.",
-      },
-      {
-        id: "v-503",
-        date: "May 10, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Dentistry",
-        notes:
-          "Routine scale and polish prior to initiation of orthodontic aligner sequence.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-9",
-        medication: "Acetaminophen 500mg",
-        dosage: "1 tablet",
-        frequency: "As needed for aligner pressure",
-        prescribedDate: "Sep 01, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "116/76",
-      hr: "68",
-      temp: "98.4",
-      spo2: "99",
-      weight: "64",
-      height: "167",
-    },
-    defaultChiefComplaint:
-      "Transitioned to aligner tray #9 three days ago. Reports localized pressure tenderness on anterior lower teeth during initial morning removal.",
-    defaultDiagnosis:
-      "Anticipated orthodontic physiologic tension on lower anterior dental arch.",
-    defaultTreatmentPlan:
-      "Instructed on continued use of silicone aligner chewies. Discomfort expected to subside within 48 hours. Advance to tray #10 in 11 days.",
-  },
-  {
-    id: "P-4328",
-    name: "Robert Chen",
-    age: 63,
-    gender: "Male",
-    bloodGroup: "A-",
-    allergies: ["Penicillin", "NSAIDs"],
-    lastVisit: "Aug 22, 2026",
-    nextAppointment: {
-      date: "Sep 30, 2026",
-      time: "04:00 PM",
-      doctor: "Dr. Rohan Mehra",
-      type: "Ophthalmology Check",
-      room: "Suite 1B",
-    },
-    previousVisits: [
-      {
-        id: "v-601",
-        date: "Aug 22, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes:
-          "Right hand osteoarthritis evaluation. Provided ergonomic jar opener recommendation and paraffin bath info.",
-      },
-      {
-        id: "v-602",
-        date: "Jun 04, 2026",
-        doctor: "Dr. Suresh Patel",
-        department: "Cardiology",
-        notes:
-          "24-hour ambulatory ECG recording revealed benign PVCs, no sustained tachycardia.",
-      },
-      {
-        id: "v-603",
-        date: "Mar 19, 2026",
-        doctor: "Dr. Rohan Mehra",
-        department: "General Practice",
-        notes:
-          "Senior preventive health wellness check. Administered annual seasonal influenza vaccination.",
-      },
-    ],
-    activeMedications: [
-      {
-        id: "am-10",
-        medication: "Amlodipine 5mg",
-        dosage: "1 tablet",
-        frequency: "Once daily in the morning",
-        prescribedDate: "Aug 22, 2026",
-      },
-      {
-        id: "am-11",
-        medication: "Acetaminophen 650mg ER",
-        dosage: "1 tablet",
-        frequency: "Twice daily as needed for joint stiffness",
-        prescribedDate: "Aug 22, 2026",
-      },
-    ],
-    defaultVitals: {
-      bp: "128/84",
-      hr: "66",
-      temp: "98.2",
-      spo2: "98",
-      weight: "74",
-      height: "174",
-    },
-    defaultChiefComplaint:
-      "Right thumb base (CMC joint) stiffness and mild swelling, particularly on waking and during handwriting tasks.",
-    defaultDiagnosis:
-      "Primary osteoarthritis of right first carpometacarpal joint and DIP joints; no acute inflammatory signs.",
-    defaultTreatmentPlan:
-      "Advised custom thumb spica splint for nighttime support. Warm water therapy and occupational hand exercises.",
-  },
-];
+
 
 interface PrescriptionRow {
   id: string;
@@ -601,7 +175,7 @@ export default function DiagnosisPage() {
   const selectedPatient =
     patientList.find((p) => p.id === selectedPatientId) ?? patientList[0] ?? null;
 
-  const fallbackMock = MOCK_PATIENTS[0];
+  
 
   // Sidebar states
   const [previousVisits, setPreviousVisits] = useState<PatientVisit[]>([]);
@@ -652,18 +226,12 @@ export default function DiagnosisPage() {
   }, [selectedPatient]);
 
   // 2. Vitals state
-  const [vitals, setVitals] = useState<VitalsState>(fallbackMock.defaultVitals);
+  const [vitals, setVitals] = useState<VitalsState>({ bp: '', hr: '', temp: '', spo2: '', weight: '', height: '' });
 
   // 3. Clinical assessment state
-  const [chiefComplaint, setChiefComplaint] = useState<string>(
-    fallbackMock.defaultChiefComplaint
-  );
-  const [diagnosis, setDiagnosis] = useState<string>(
-    fallbackMock.defaultDiagnosis
-  );
-  const [treatmentPlan, setTreatmentPlan] = useState<string>(
-    fallbackMock.defaultTreatmentPlan
-  );
+  const [chiefComplaint, setChiefComplaint] = useState<string>('');
+  const [diagnosis, setDiagnosis] = useState<string>('');
+  const [treatmentPlan, setTreatmentPlan] = useState<string>('');
 
   // 4. Prescriptions state
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([
@@ -696,13 +264,8 @@ export default function DiagnosisPage() {
   // When patient selection changes, load their baseline information
   const handleSelectPatient = (newPatientId: string) => {
     setSelectedPatientId(newPatientId);
-    const target = MOCK_PATIENTS.find((p) => p.id === newPatientId);
-    if (target) {
-      setVitals(target.defaultVitals);
-      setChiefComplaint(target.defaultChiefComplaint);
-      setDiagnosis(target.defaultDiagnosis);
-      setTreatmentPlan(target.defaultTreatmentPlan);
-    }
+    
+    
   };
 
   // Vitals update handler
@@ -887,7 +450,7 @@ export default function DiagnosisPage() {
   };
 
   // Initials for avatar
-  const patientDisplayName = selectedPatient?.name ?? fallbackMock.name;
+  const patientDisplayName = selectedPatient?.name ?? 'Unknown';
   const patientInitials =
     patientDisplayName
       .split(" ")
@@ -943,7 +506,7 @@ export default function DiagnosisPage() {
             </p>
             <p className="text-xs text-teal-700 dark:text-teal-300">
               Clinical notes, vitals, and prescriptions saved for{" "}
-              <span className="font-semibold">{selectedPatient?.name ?? fallbackMock.name}</span>.
+              <span className="font-semibold">{selectedPatient?.name ?? 'Unknown'}</span>.
             </p>
           </div>
           <button
@@ -1050,19 +613,18 @@ export default function DiagnosisPage() {
             </AvatarFallback>
           </Avatar>
           <span className="font-semibold text-slate-900 dark:text-slate-100">
-            {selectedPatient?.name ?? fallbackMock.name}
+            {selectedPatient?.name ?? 'Unknown'}
           </span>
           <Badge
             variant="outline"
             className="border-blue-300 bg-white font-mono text-[10px] font-medium text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
           >
-            {selectedPatient ? selectedPatient.id : fallbackMock.id}
+            {selectedPatient?.id ?? 'Unknown'}
           </Badge>
           <span className="text-slate-400 dark:text-slate-500">&bull;</span>
           <span className="font-medium">
             {selectedPatient
-              ? `${calculateAge(selectedPatient.dob)} ${calculateAge(selectedPatient.dob) !== "--" ? "years old" : ""} • ${selectedPatient.gender ?? "Unknown"}`
-              : `${fallbackMock.age} years old • ${fallbackMock.gender}`}
+              ? `${calculateAge(selectedPatient.dob)} years old • ${selectedPatient.gender ?? 'Unknown'}` : 'Age Unknown'}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -1079,7 +641,7 @@ export default function DiagnosisPage() {
             variant="secondary"
             className="border-teal-200 bg-teal-50 text-[10px] font-semibold text-teal-700 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300"
           >
-            Blood Group: {selectedPatient?.blood_group ?? fallbackMock.bloodGroup}
+            Blood Group: {selectedPatient?.blood_group ?? 'Unknown'}
           </Badge>
         </div>
       </div>
@@ -1703,7 +1265,7 @@ export default function DiagnosisPage() {
                   variant="outline"
                   className="border-rose-200 bg-rose-50 font-bold text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
                 >
-                  Blood: {selectedPatient?.blood_group ?? fallbackMock.bloodGroup}
+                  Blood: {selectedPatient?.blood_group ?? 'Unknown'}
                 </Badge>
               </div>
             </CardHeader>
@@ -1717,20 +1279,19 @@ export default function DiagnosisPage() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-bold text-slate-900 dark:text-slate-100">
-                    {selectedPatient?.name ?? fallbackMock.name}
+                    {selectedPatient?.name ?? 'Unknown'}
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                     <Badge
                       variant="secondary"
                       className="font-mono text-[10px] text-slate-700 dark:text-slate-300"
                     >
-                      {selectedPatient ? selectedPatient.id.slice(0, 8) : fallbackMock.id}
+                      {selectedPatient?.id?.slice(0, 8) ?? 'Unknown'}
                     </Badge>
                     <span className="text-slate-400">&bull;</span>
                     <span className="text-slate-600 dark:text-slate-400">
                       {selectedPatient
-                        ? `${calculateAge(selectedPatient.dob)} ${calculateAge(selectedPatient.dob) !== "--" ? "yrs" : ""}, ${selectedPatient.gender ?? "Unknown"}`
-                        : `${fallbackMock.age} yrs, ${fallbackMock.gender}`}
+                        ? `${calculateAge(selectedPatient.dob)} years old • ${selectedPatient.gender ?? 'Unknown'}` : 'Age Unknown'}
                     </span>
                   </div>
                 </div>
