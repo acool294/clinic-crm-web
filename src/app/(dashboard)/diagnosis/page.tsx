@@ -258,7 +258,7 @@ export default function DiagnosisPage() {
   const [treatmentPlan, setTreatmentPlan] = useState<string>('');
 
   // 4. Prescriptions state
-  const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([
+  const [prescriptions, setPrescriptions] = useState<(PrescriptionRow & { isDeleted?: boolean })[]>([
     {
       id: "rx-init-1",
       medication: "Amoxicillin",
@@ -431,7 +431,10 @@ export default function DiagnosisPage() {
         },
         prescriptions: prescriptions
           .filter((p) => p.medication)
-          .map((p) => ({ medication: p.medication, dosage: p.dosage })),
+          .map((p) => ({ 
+            medication: p.isDeleted ? '[DELETED] ' + p.medication : p.medication, 
+            dosage: p.dosage 
+          })),
       });
 
       // NEW: Upload lab files
