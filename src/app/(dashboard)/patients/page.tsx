@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { fetchPatients, createPatient, type PatientRow } from "@/lib/db/patients";
+import { fetchPatients, createPatient, updatePatient, type PatientRow } from "@/lib/db/patients";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatId } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -322,6 +323,8 @@ export default function PatientsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<PastVisit | null>(null);

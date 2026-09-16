@@ -1,4 +1,5 @@
 "use client";
+import { fetchPatients } from '@/lib/db/patients';
 
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -54,6 +55,7 @@ import {
 import {
   fetchAppointments,
   updateAppointmentStatus,
+  createAppointment,
   type AppointmentWithDetails,
 } from "@/lib/db/appointments";
 import {
@@ -251,10 +253,12 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patientsList, setPatientsList] = useState<any[]>([]);
   const [apptLoading, setApptLoading] = useState(true);
 
   useEffect(() => {
     loadAppointments();
+    fetchPatients().then(setPatientsList).catch(() => {});
   }, []);
 
   async function loadAppointments() {
@@ -283,8 +287,7 @@ export default function CalendarPage() {
   // New Appointment Modal State
   const [isNewDialogOpen, setIsNewDialogOpen] = useState<boolean>(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [newAppt, setNewAppt] = useState({
-    patient: "",
+  const [newAppt, setNewAppt] = useState({ patient: "", patientId: "",
     doctor: "", // will be auto-set based on role
     date: format(new Date(), "yyyy-MM-dd"),
     time: "09:00",
@@ -449,34 +452,36 @@ export default function CalendarPage() {
     setIsRescheduleOpen(false);
   };
 
-  const handleCreateAppointment = (e: React.FormEvent) => {
+  const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAppt.patient.trim()) return;
+    if (!newAppt.patientId) {
+      alert('Please select a valid patient.');
+      return;
+    }
 
-    const newApt: Appointment = {
-      id: String(Date.now()),
-      patient: newAppt.patient.trim(),
-      date: newAppt.date,
-      time: newAppt.time,
-      duration: Number(newAppt.duration),
-      type: newAppt.type,
-      doctor: newAppt.doctor || (isDoctor && currentDoctorName ? currentDoctorName : "Dr. Smith"),
-      status: "scheduled",
-    };
-
-    setAppointments((prev) => [...prev, newApt]);
-    setSelectedAppointment(newApt);
-    setIsNewDialogOpen(false);
-
-    // Reset Form
-    setNewAppt({
-      patient: "",
-      doctor: isDoctor && currentDoctorName ? currentDoctorName : "",
-      date: format(new Date(), "yyyy-MM-dd"),
-      time: "09:00",
-      duration: 30,
-      type: "Consultation" as AppointmentType,
-    });
+    try {
+      await createAppointment({
+        clinic_patient_link_id: newAppt.patientId,
+        doctor_id: staffProfile?.id || '',
+        scheduled_at: newAppt.date + 'T' + newAppt.time + ':00',
+        duration_minutes: Number(newAppt.duration),
+        appointment_type: newAppt.type
+      });
+      await loadAppointments();
+      setIsNewDialogOpen(false);
+      setNewAppt({
+        patient: '',
+        patientId: '',
+        doctor: isDoctor && currentDoctorName ? currentDoctorName : '',
+        date: newAppt.date,
+        time: '09:00',
+        duration: 30,
+        type: 'Consultation' as AppointmentType,
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create appointment.');
+    }
   };
 
   return (

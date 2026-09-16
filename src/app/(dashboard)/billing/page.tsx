@@ -1,4 +1,5 @@
 "use client";
+import { fetchPatients } from "@/lib/db/patients";
 
 import * as React from "react";
 import { useState, useMemo, useEffect } from "react";
@@ -162,6 +163,7 @@ function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
 export default function BillingPage() {
   const { staffProfile } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [patientsList, setPatientsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -199,6 +201,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     loadInvoices();
+    fetchPatients().then(setPatientsList).catch(() => {});
   }, []);
 
   async function loadInvoices() {

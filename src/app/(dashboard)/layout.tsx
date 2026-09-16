@@ -39,7 +39,7 @@ import {
   Bell,
   CalendarDays,
   ChevronDown,
-  LayoutDashboard,
+  User, LayoutDashboard,
   Loader2,
   LogOut,
   Receipt,
@@ -353,6 +353,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    render={<Link href="/profile" />}
+                    className="cursor-pointer"
+                  >
+                    <User className="size-4 text-slate-500" />
+                    <span>My Profile</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     render={<Link href="/settings" />}
                     className="cursor-pointer"

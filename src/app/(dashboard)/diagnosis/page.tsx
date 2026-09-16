@@ -1,4 +1,5 @@
 "use client";
+import { supabase } from '@/lib/supabase';
 
 import * as React from "react";
 import { useState, useRef, useId, useEffect } from "react";
@@ -186,6 +187,7 @@ export default function DiagnosisPage() {
     doctor_name: string;
   } | null>(null);
   const [sidebarLoading, setSidebarLoading] = useState<boolean>(false);
+  const [patientAppointments, setPatientAppointments] = useState<any[]>([]);
 
   useEffect(() => {
     if (!selectedPatient) {
@@ -199,15 +201,37 @@ export default function DiagnosisPage() {
       if (!selectedPatient) return;
       setSidebarLoading(true);
       try {
-        // 1. Fetch upcoming appointment
         const appt = await fetchPatientUpcomingAppointment(selectedPatient.id);
         setUpcomingAppt(appt);
 
-        // 2. Fetch past visits
+        // Fetch all appointments for dropdown
+        const { data: allAppts } = await supabase
+          .from('appointments')
+          .select('id, scheduled_at, staff_users(name)')
+          .eq('patient_id', selectedPatient.auth_user_id || selectedPatient.id)
+          .order('scheduled_at', { ascending: false });
+        
+        // Wait, appointments table links via patient_id which might be auth_user_id or the patient's row id.
+        // Let's just fetch all appointments by querying clinic_patient_links.
+        const { data: links } = await supabase.from('clinic_patient_links').select('id').eq('patient_id', selectedPatient.id);
+        if (links && links.length > 0) {
+           const linkIds = links.map((l: any) => l.id);
+           const { data: realAppts } = await supabase.from('appointments')
+              .select('id, scheduled_at, staff_users!doctor_id(name)')
+              .in('clinic_patient_link_id', linkIds)
+              .order('scheduled_at', { ascending: false });
+           
+           if (realAppts) {
+              setPatientAppointments(realAppts);
+              if (realAppts.length > 0 && !appointmentId) {
+                setAppointmentId(realAppts[0].id);
+              }
+           }
+        }
+
         const visits = await fetchPatientVisits(selectedPatient.id);
         setPreviousVisits(visits);
 
-        // 3. Extract active meds from the most recent visit that has prescriptions
         const recentVisitWithMeds = visits.find(
           (v) => v.prescriptions && v.prescriptions.length > 0
         );
