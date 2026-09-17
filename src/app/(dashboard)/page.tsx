@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AddPatientDialog } from "@/components/AddPatientDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchDashboardStats } from "@/lib/db/staff";
@@ -874,103 +875,12 @@ export default function DashboardPage() {
       </Dialog>
 
       {/* Add Patient Modal */}
-      <Dialog open={isAddPatientOpen} onOpenChange={setIsAddPatientOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-2 text-blue-600">
-              <UserPlus className="size-5" />
-              <DialogTitle className="text-base font-semibold text-foreground">
-                Register New Patient
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Enter patient details to register and queue into today&apos;s schedule.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleAddPatientSubmit} className="space-y-3 py-2 text-xs">
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Full Name *</label>
-              <Input
-                placeholder="e.g. Samuel Green"
-                value={newPatientName}
-                onChange={(e) => setNewPatientName(e.target.value)}
-                required
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Date of Birth</label>
-                <Input
-                  placeholder="MM/DD/YYYY"
-                  value={newPatientDob}
-                  onChange={(e) => setNewPatientDob(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Gender</label>
-                <select
-                  value={newPatientGender}
-                  onChange={(e) => setNewPatientGender(e.target.value as "Female" | "Male" | "Other")}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="Female" className="bg-popover text-popover-foreground">Female</option>
-                  <option value="Male" className="bg-popover text-popover-foreground">Male</option>
-                  <option value="Other" className="bg-popover text-popover-foreground">Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Phone Number</label>
-                <Input
-                  placeholder="(555) 000-0000"
-                  value={newPatientPhone}
-                  onChange={(e) => setNewPatientPhone(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Visit Reason</label>
-                <select
-                  value={newPatientType}
-                  onChange={(e) => setNewPatientType(e.target.value)}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="General Consultation" className="bg-popover text-popover-foreground">General Consultation</option>
-                  <option value="Annual Physical" className="bg-popover text-popover-foreground">Annual Physical</option>
-                  <option value="Follow-up Visit" className="bg-popover text-popover-foreground">Follow-up Visit</option>
-                  <option value="Lab Review" className="bg-popover text-popover-foreground">Lab Review</option>
-                  <option value="Urgent Care" className="bg-popover text-popover-foreground">Urgent Care</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Insurance Provider</label>
-              <Input
-                placeholder="e.g. BlueCross PPO, Medicare, Self-Pay"
-                value={newPatientInsurance}
-                onChange={(e) => setNewPatientInsurance(e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0 pt-2">
-              <DialogClose render={<Button type="button" variant="outline" size="sm" />}>
-                Cancel
-              </DialogClose>
-              <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                Register & Queue
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddPatientDialog 
+        open={isAddPatientOpen} 
+        onOpenChange={setIsAddPatientOpen} 
+        staffProfile={staffProfile}
+        onSuccess={() => { setIsAddPatientOpen(false); window.location.reload(); }}
+      />
     </div>
   );
 }
