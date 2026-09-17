@@ -424,11 +424,20 @@ export default function BillingPage() {
     try {
       // Look up clinic_patient_link_id: if user entered patient ID, find corresponding link ID
       let linkId = patientIdInput.trim();
-      const { data: linkData } = await supabase
+      const { data: staffData } = await supabase.from('staff_users').select('clinic_id').eq('id', (await supabase.auth.getUser()).data.user?.id).single();
+      let { data: linkData } = await supabase
         .from("clinic_patient_links")
         .select("id")
         .eq("patient_id", linkId)
+        .eq("clinic_id", staffData?.clinic_id)
         .maybeSingle();
+
+      if (!linkData && staffData?.clinic_id) {
+         // Create link if missing
+         const { data: newLink, error: linkErr } = await supabase.from('clinic_patient_links').insert({ patient_id: linkId, clinic_id: staffData.clinic_id }).select('id').single();
+         if (linkErr) throw linkErr;
+         linkData = newLink;
+      }
 
       if (linkData?.id) {
         linkId = linkData.id;
@@ -451,12 +460,9 @@ export default function BillingPage() {
       setTimeout(() => {
         setNotification(null);
       }, 4500);
-    } catch (err) {
-      setCreateError(
-        err instanceof Error
-          ? err.message
-          : "Failed to create invoice. Please check the Patient ID."
-      );
+    } catch (err: any) {
+      console.error('Invoice Creation Error:', err);
+      setCreateError(err?.message || "Failed to create invoice. Database Error.");
     } finally {
       setIsCreateSaving(false);
     }

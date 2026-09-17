@@ -476,7 +476,11 @@ export default function CalendarPage() {
       const { data: staffData } = await supabase.from('staff_users').select('clinic_id').eq('id', staffProfile?.id).single();
       let linkId = newAppt.patientId;
       if (staffData) {
-         const { data: linkData } = await supabase.from('clinic_patient_links').select('id').eq('patient_id', newAppt.patientId).eq('clinic_id', staffData.clinic_id).single();
+         let { data: linkData } = await supabase.from('clinic_patient_links').select('id').eq('patient_id', newAppt.patientId).eq('clinic_id', staffData.clinic_id).maybeSingle();
+         if (!linkData) {
+            const { data: newLink } = await supabase.from('clinic_patient_links').insert({ patient_id: newAppt.patientId, clinic_id: staffData.clinic_id }).select('id').single();
+            linkData = newLink;
+         }
          if (linkData) linkId = linkData.id;
       }
 
