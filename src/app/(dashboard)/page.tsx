@@ -153,22 +153,44 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
-    async function loadStats() {
+    async function loadData() {
       try {
         setStatsLoading(true);
+        setLoadingAppts(true);
+        
+        // Fetch stats
         const data = await fetchDashboardStats();
+        
+        // Fetch appointments
+        const appts = await fetchAppointments();
+        const mapped = appts.map((r) => ({
+           id: r.id,
+           patientName: r.patient_name,
+           mrn: 'MRN-' + r.id.substring(0, 5),
+           age: 30, dob: "1990-01-01", phone: "Unknown", email: "", insurance: "", vitals: { bp: "-", hr: 0, temp: 0, spO2: 0, weight: 0, height: 0 }, medications: [], allergies: [], notes: "",
+           gender: "Other",
+           date: r.scheduled_at.split('T')[0],
+           time: r.scheduled_at.split('T')[1]?.substring(0, 5) || '09:00',
+           duration: r.duration_minutes,
+           type: r.appointment_type || 'Consultation',
+           status: r.status,
+           room: 'Exam ' + (Math.floor(Math.random() * 3) + 1) + 'A'
+        })).filter(a => a.date === new Date().toISOString().split('T')[0]); // Only today
+
         if (isMounted) {
           setStats(data);
+          setAppointments(mapped);
         }
-      } catch {
-        // Catch errors silently (keep showing 0)
+      } catch (e) {
+        console.error(e);
       } finally {
         if (isMounted) {
           setStatsLoading(false);
+          setLoadingAppts(false);
         }
       }
     }
-    loadStats();
+    loadData();
     return () => {
       isMounted = false;
     };

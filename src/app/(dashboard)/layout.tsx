@@ -47,6 +47,7 @@ import {
   Settings,
   Stethoscope,
   Users,
+  AlertCircle,
 } from "lucide-react";
 
 interface NavItem {
@@ -353,19 +354,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    render={<Link href="/profile" />}
+                  <DropdownMenuItem onClick={() => window.location.href="/profile"}
                     className="cursor-pointer"
                   >
                     <User className="size-4 text-slate-500" />
                     <span>My Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    render={<Link href="/settings" />}
+                  <DropdownMenuItem onClick={() => window.location.href="/settings"}
                     className="cursor-pointer"
                   >
                     <Settings className="size-4 text-slate-500" />
                     <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => window.location.href="mailto:support@clinic-crm.com?subject=Bug Report"}
+                    className="cursor-pointer"
+                  >
+                    <AlertCircle className="size-4 text-slate-500 mr-2" />
+                    <span>Report Issue</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />

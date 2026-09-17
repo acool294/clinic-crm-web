@@ -217,7 +217,7 @@ export default function DiagnosisPage() {
         if (links && links.length > 0) {
            const linkIds = links.map((l: any) => l.id);
            const { data: realAppts } = await supabase.from('appointments')
-              .select('id, scheduled_at, staff_users!doctor_id(name)')
+              .select('id, scheduled_at, staff_users(name)')
               .in('clinic_patient_link_id', linkIds)
               .order('scheduled_at', { ascending: false });
            
@@ -599,15 +599,21 @@ export default function DiagnosisPage() {
 
           {/* Appointment ID Input */}
           <div className="w-48 sm:w-56">
-            <Input
-              value={appointmentId}
-              onChange={(e) => {
-                setAppointmentId(e.target.value);
-                if (warning) setWarning(null);
-              }}
-              placeholder="Appointment ID (optional)"
-              className="h-10 border-slate-200 bg-slate-50 text-xs font-medium focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800"
-            />
+            <Select value={appointmentId} onValueChange={(val) => { setAppointmentId(val); if(warning) setWarning(null); }}>
+              <SelectTrigger className="h-10 border-slate-200 bg-slate-50 text-xs font-medium focus:border-blue-600 focus:bg-white">
+                 <SelectValue placeholder="Select Appointment..." />
+              </SelectTrigger>
+              <SelectContent>
+                 {patientAppointments.map(a => (
+                    <SelectItem key={a.id} value={a.id}>
+                       {new Date(a.scheduled_at).toLocaleString()} - Dr. {a.staff_users?.name || 'Unknown'}
+                    </SelectItem>
+                 ))}
+                 {patientAppointments.length === 0 && (
+                    <SelectItem value="none" disabled>No appointments found</SelectItem>
+                 )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Save Visit Record Primary Button */}

@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PatientCombobox } from "@/components/PatientCombobox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -53,10 +54,11 @@ import {
   AlertCircle,
   RotateCcw,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import {
   fetchAppointments,
-  updateAppointmentStatus,
+  updateAppointmentStatus, rescheduleAppointment,
   createAppointment,
   type AppointmentWithDetails,
 } from "@/lib/db/appointments";
@@ -103,7 +105,7 @@ export interface Appointment {
   status: AppointmentStatus;
 }
 
-const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
 function formatHour(hour: number): string {
   const period = hour >= 12 ? "PM" : "AM";
@@ -436,22 +438,31 @@ export default function CalendarPage() {
     setIsRescheduleOpen(true);
   };
 
-  const handleRescheduleSubmit = (e: React.FormEvent) => {
+  const handleRescheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAppointment) return;
 
-    const updatedApt: Appointment = {
-      ...selectedAppointment,
-      date: format(rescheduleDate, "yyyy-MM-dd"),
-      time: rescheduleTime,
-      status: "scheduled",
-    };
+    const newScheduledAt = format(rescheduleDate, "yyyy-MM-dd") + 'T' + rescheduleTime + ':00';
 
-    setAppointments((prev) =>
-      prev.map((apt) => (apt.id === selectedAppointment.id ? updatedApt : apt))
-    );
-    setSelectedAppointment(updatedApt);
-    setIsRescheduleOpen(false);
+    try {
+      await rescheduleAppointment(selectedAppointment.id, newScheduledAt);
+      
+      const updatedApt: Appointment = {
+        ...selectedAppointment,
+        date: format(rescheduleDate, "yyyy-MM-dd"),
+        time: rescheduleTime,
+        status: "scheduled",
+      };
+
+      setAppointments((prev) =>
+        prev.map((apt) => (apt.id === selectedAppointment.id ? updatedApt : apt))
+      );
+      setSelectedAppointment(updatedApt);
+      setIsRescheduleOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reschedule');
+    }
   };
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
@@ -1275,44 +1286,14 @@ export default function CalendarPage() {
           <form onSubmit={handleCreateAppointment} className="space-y-4 py-2">
             <div className="space-y-1.5 flex flex-col">
   <label className="text-xs font-semibold text-slate-700">Patient Name *</label>
-  <Popover>
-    <PopoverTrigger className="flex items-center justify-between h-9 px-3 font-normal bg-white border border-input rounded-md text-sm w-full outline-none focus:ring-2 focus:ring-ring">
-        {newAppt.patientId 
-          ? (() => {
-              const p = patientsList.find(x => x.id === newAppt.patientId);
-              return p ? p.name : 'Select patient...';
-            })()
-          : 'Select patient...'}
-        <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </PopoverTrigger>
-    <PopoverContent className="w-[380px] p-0">
-      <Command>
-        <CommandInput placeholder="Search patient by name..." />
-        <CommandList>
-          <CommandEmpty>No patient found.</CommandEmpty>
-          <CommandGroup>
-            {patientsList.map(p => (
-              <CommandItem
-                key={p.id}
-                value={p.name}
-                onSelect={() => {
-                  setNewAppt(prev => ({ ...prev, patientId: p.id, patient: p.name }));
-                }}
-              >
-                <CheckCircle2
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    newAppt.patientId === p.id ? "opacity-100 text-blue-600" : "opacity-0"
-                  )}
-                />
-                {p.name} {p.dob ? `(${Math.abs(new Date(Date.now() - new Date(p.dob).getTime()).getUTCFullYear() - 1970)} y/o)` : ''} - Joined: {new Date(p.created_at).toLocaleDateString()}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </PopoverContent>
-  </Popover>
+  <PatientCombobox 
+    patients={patientsList} 
+    value={newAppt.patientId || ''} 
+    onChange={(val) => {
+      const p = patientsList.find(x => x.id === val);
+      setNewAppt(prev => ({ ...prev, patientId: val, patient: p?.name || '' }));
+    }} 
+  />
 </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1416,6 +1397,7 @@ export default function CalendarPage() {
                   <option value="11:00">11:00 AM</option>
                   <option value="11:30">11:30 AM</option>
                   <option value="12:00">12:00 PM</option>
+                  <option value="12:30">12:30 PM</option>
                   <option value="13:00">01:00 PM</option>
                   <option value="13:30">01:30 PM</option>
                   <option value="14:00">02:00 PM</option>
@@ -1425,6 +1407,14 @@ export default function CalendarPage() {
                   <option value="16:00">04:00 PM</option>
                   <option value="16:30">04:30 PM</option>
                   <option value="17:00">05:00 PM</option>
+                  <option value="17:30">05:30 PM</option>
+                  <option value="18:00">06:00 PM</option>
+                  <option value="18:30">06:30 PM</option>
+                  <option value="19:00">07:00 PM</option>
+                  <option value="19:30">07:30 PM</option>
+                  <option value="20:00">08:00 PM</option>
+                  <option value="20:30">08:30 PM</option>
+                  <option value="21:00">09:00 PM</option>
                 </select>
               </div>
 
@@ -1523,23 +1513,32 @@ export default function CalendarPage() {
                 className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-900 shadow-2xs focus:border-blue-500 focus:outline-none"
               >
                 <option value="08:00">08:00 AM</option>
-                <option value="08:30">08:30 AM</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="09:30">09:30 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="10:30">10:30 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="11:30">11:30 AM</option>
-                <option value="12:00">12:00 PM</option>
-                <option value="13:00">01:00 PM</option>
-                <option value="13:30">01:30 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="14:30">02:30 PM</option>
-                <option value="15:00">03:00 PM</option>
-                <option value="15:30">03:30 PM</option>
-                <option value="16:00">04:00 PM</option>
-                <option value="16:30">04:30 PM</option>
-                <option value="17:00">05:00 PM</option>
+                  <option value="08:30">08:30 AM</option>
+                  <option value="09:00">09:00 AM</option>
+                  <option value="09:30">09:30 AM</option>
+                  <option value="10:00">10:00 AM</option>
+                  <option value="10:30">10:30 AM</option>
+                  <option value="11:00">11:00 AM</option>
+                  <option value="11:30">11:30 AM</option>
+                  <option value="12:00">12:00 PM</option>
+                  <option value="12:30">12:30 PM</option>
+                  <option value="13:00">01:00 PM</option>
+                  <option value="13:30">01:30 PM</option>
+                  <option value="14:00">02:00 PM</option>
+                  <option value="14:30">02:30 PM</option>
+                  <option value="15:00">03:00 PM</option>
+                  <option value="15:30">03:30 PM</option>
+                  <option value="16:00">04:00 PM</option>
+                  <option value="16:30">04:30 PM</option>
+                  <option value="17:00">05:00 PM</option>
+                  <option value="17:30">05:30 PM</option>
+                  <option value="18:00">06:00 PM</option>
+                  <option value="18:30">06:30 PM</option>
+                  <option value="19:00">07:00 PM</option>
+                  <option value="19:30">07:30 PM</option>
+                  <option value="20:00">08:00 PM</option>
+                  <option value="20:30">08:30 PM</option>
+                  <option value="21:00">09:00 PM</option>
               </select>
             </div>
 

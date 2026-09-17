@@ -101,3 +101,12 @@ export async function fetchTodayAppointmentCount(): Promise<number> {
   if (error) return 0;
   return count ?? 0;
 }
+
+
+export async function rescheduleAppointment(
+  id: string,
+  scheduled_at: string
+): Promise<void> {
+  const { error } = await supabase.from('appointments').update({ scheduled_at }).eq('id', id);
+  if (error) throw error;
+}
