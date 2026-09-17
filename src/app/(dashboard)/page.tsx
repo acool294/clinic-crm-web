@@ -167,7 +167,7 @@ export default function DashboardPage() {
            id: r.id,
            patientName: r.patient_name,
            mrn: 'MRN-' + r.id.substring(0, 5),
-           age: 30, dob: "1990-01-01", phone: "Unknown", email: "", insurance: "", vitals: { bp: "-", hr: 0, temp: 0, spO2: 0, weight: 0, height: 0 }, medications: [], allergies: [], notes: "",
+           age: 30, dob: "1990-01-01", phone: "Unknown", email: "", insurance: "", vitals: { bp: "-", hr: 0, temp: 0, spo2: 0, bmi: 0 }, medications: [], diagnoses: [], allergies: [], notes: "",
            gender: "Other",
            date: r.scheduled_at.split('T')[0],
            time: r.scheduled_at.split('T')[1]?.substring(0, 5) || '09:00',
