@@ -1,4 +1,6 @@
 "use client";
+import { supabase } from "@/lib/supabase";
+import { createAppointment } from "@/lib/db/appointments";
 
 import * as React from "react";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -16,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatId } from "@/lib/utils";
+import { INSURANCE_PROVIDERS_INDIA } from "@/lib/constants/insurance";
 import {
   Sheet,
   SheetContent,
@@ -343,10 +346,18 @@ export default function PatientsPage() {
     isInsured: false,
     email: "",
   });
+  const [scheduleAppointment, setScheduleAppointment] = useState(false);
+  const [appointmentDetails, setAppointmentDetails] = useState({
+    date: '', time: '09:00', duration: 30, type: 'Consultation' as 'Consultation' | 'Follow-up' | 'Lab Review', doctorId: ''
+  });
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const loadPatientsData = useCallback(async () => {
+    supabase.from('staff_users').select('id, name').eq('role', 'doctor').then(({data}) => {
+       if (data) setDoctorsList(data);
+    });
     try {
       setIsLoading(true);
       setLoadError(null);
