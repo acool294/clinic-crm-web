@@ -1416,21 +1416,14 @@ export default function BillingPage() {
                 </span>
               </div>
               {/* TODO: Replace with patient search dropdown when patients page shares state */}
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <Input
-                  id="patient-id-input"
-                  type="text"
-                  placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-                  value={patientIdInput}
-                  onChange={(e) => {
-                    setPatientIdInput(e.target.value);
-                    if (createError) setCreateError("");
-                  }}
-                  className="h-10 pl-9 font-mono text-xs border-slate-200 dark:border-slate-700"
-                  required
-                />
-              </div>
+              <PatientCombobox
+                patients={patientsList}
+                value={patientIdInput}
+                onChange={(val) => {
+                  setPatientIdInput(val);
+                  if (createError) setCreateError("");
+                }}
+              />
             </div>
 
             {/* Subtotal Amount Input */}

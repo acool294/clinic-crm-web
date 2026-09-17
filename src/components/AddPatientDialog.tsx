@@ -20,6 +20,7 @@ interface AddPatientDialogProps {
 
 export function AddPatientDialog({ open, onOpenChange, staffProfile, onSuccess }: AddPatientDialogProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const [existingPatient, setExistingPatient] = useState<any>(null);
   const [formError, setFormError] = useState<string | null>(null);
   
   const [newPatient, setNewPatient] = useState({
@@ -55,10 +56,25 @@ export function AddPatientDialog({ open, onOpenChange, staffProfile, onSuccess }
     }
   }, [open, staffProfile]);
 
+  
+  const handlePhoneBlur = async () => {
+    if (newPatient.phone.trim().length >= 10) {
+      const { data } = await supabase.from('patients').select('id, name, phone').eq('phone', newPatient.phone.trim()).single();
+      if (data) {
+        setExistingPatient(data);
+        setFormError("Patient with this phone number already exists: " + data.name);
+      } else {
+        setExistingPatient(null);
+        if (formError && formError.includes('already exists')) setFormError(null);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     
+    if (existingPatient) { setFormError("Cannot create duplicate patient. Please search for " + existingPatient.name + " instead."); return; }
     if (!newPatient.name.trim() || !newPatient.dob || !newPatient.gender || !newPatient.phone.trim()) {
       setFormError("Please fill out all required fields.");
       return;

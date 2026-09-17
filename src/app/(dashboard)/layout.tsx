@@ -354,13 +354,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => window.location.href="/profile"}
+                  <DropdownMenuItem onClick={() => router.push("/profile")}
                     className="cursor-pointer"
                   >
                     <User className="size-4 text-slate-500" />
                     <span>My Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.location.href="/settings"}
+                  <DropdownMenuItem onClick={() => router.push("/settings")}
                     className="cursor-pointer"
                   >
                     <Settings className="size-4 text-slate-500" />

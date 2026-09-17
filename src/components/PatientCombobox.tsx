@@ -11,6 +11,7 @@ interface Patient {
   id: string;
   name: string;
   dob?: string;
+  phone?: string;
   created_at: string;
 }
 
@@ -39,14 +40,14 @@ export function PatientCombobox({ patients, value, onChange, placeholder = "Sele
       </PopoverTrigger>
       <PopoverContent className="w-[380px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search patient by name..." />
+          <CommandInput placeholder="Search by name or phone..." />
           <CommandList>
             <CommandEmpty>No patient found.</CommandEmpty>
             <CommandGroup>
               {patients.map((p) => (
                 <CommandItem
                   key={p.id}
-                  value={p.name}
+                  value={p.name + " " + (p.phone || "")}
                   onSelect={() => {
                     onChange(p.id);
                     setOpen(false);
@@ -58,7 +59,7 @@ export function PatientCombobox({ patients, value, onChange, placeholder = "Sele
                       value === p.id ? "opacity-100 text-blue-600" : "opacity-0"
                     )}
                   />
-                  {p.name} {p.dob ? `(${Math.abs(new Date(Date.now() - new Date(p.dob).getTime()).getUTCFullYear() - 1970)} y/o)` : ''} - Joined: {new Date(p.created_at).toLocaleDateString()}
+                  {p.name} {p.phone ? " - " + p.phone : ""} {p.dob ? `(${Math.abs(new Date(Date.now() - new Date(p.dob).getTime()).getUTCFullYear() - 1970)} y/o)` : ''} - Joined: {new Date(p.created_at).toLocaleDateString()}
                 </CommandItem>
               ))}
             </CommandGroup>
