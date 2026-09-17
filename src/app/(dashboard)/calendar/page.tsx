@@ -1,4 +1,5 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 import { fetchPatients } from '@/lib/db/patients';
 
 import { useState, useMemo, useEffect } from "react";
@@ -30,6 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Tooltip,
@@ -287,7 +289,7 @@ export default function CalendarPage() {
   // New Appointment Modal State
   const [isNewDialogOpen, setIsNewDialogOpen] = useState<boolean>(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [newAppt, setNewAppt] = useState({ patient: "", patientId: "",
+  const [newAppt, setNewAppt] = useState({ patient: "", patientId: "", doctorId: "",
     doctor: "", // will be auto-set based on role
     date: format(new Date(), "yyyy-MM-dd"),
     time: "09:00",
@@ -460,9 +462,16 @@ export default function CalendarPage() {
     }
 
     try {
+      const { data: staffData } = await supabase.from('staff_users').select('clinic_id').eq('id', staffProfile?.id).single();
+      let linkId = newAppt.patientId;
+      if (staffData) {
+         const { data: linkData } = await supabase.from('clinic_patient_links').select('id').eq('patient_id', newAppt.patientId).eq('clinic_id', staffData.clinic_id).single();
+         if (linkData) linkId = linkData.id;
+      }
+
       await createAppointment({
-        clinic_patient_link_id: newAppt.patientId,
-        doctor_id: staffProfile?.id || '',
+        clinic_patient_link_id: linkId,
+        doctor_id: isDoctor ? (staffProfile?.id || "") : (newAppt.doctorId || staffProfile?.id || ""),
         scheduled_at: newAppt.date + 'T' + newAppt.time + ':00',
         duration_minutes: Number(newAppt.duration),
         appointment_type: newAppt.type
@@ -472,7 +481,7 @@ export default function CalendarPage() {
       setNewAppt({
         patient: '',
         patientId: '',
-        doctor: isDoctor && currentDoctorName ? currentDoctorName : '',
+        doctor: isDoctor && currentDoctorName ? currentDoctorName : '', doctorId: "",
         date: newAppt.date,
         time: '09:00',
         duration: 30,
@@ -1264,18 +1273,47 @@ export default function CalendarPage() {
           </DialogHeader>
 
           <form onSubmit={handleCreateAppointment} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Patient Name
-              </label>
-              <Input
-                required
-                placeholder="e.g. Clara Oswald"
-                value={newAppt.patient}
-                onChange={(e) => setNewAppt((prev) => ({ ...prev, patient: e.target.value }))}
-                className="h-9"
-              />
-            </div>
+            <div className="space-y-1.5 flex flex-col">
+  <label className="text-xs font-semibold text-slate-700">Patient Name *</label>
+  <Popover>
+    <PopoverTrigger className="flex items-center justify-between h-9 px-3 font-normal bg-white border border-input rounded-md text-sm w-full outline-none focus:ring-2 focus:ring-ring">
+        {newAppt.patientId 
+          ? (() => {
+              const p = patientsList.find(x => x.id === newAppt.patientId);
+              return p ? p.name : 'Select patient...';
+            })()
+          : 'Select patient...'}
+        <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+    <PopoverContent className="w-[380px] p-0">
+      <Command>
+        <CommandInput placeholder="Search patient by name..." />
+        <CommandList>
+          <CommandEmpty>No patient found.</CommandEmpty>
+          <CommandGroup>
+            {patientsList.map(p => (
+              <CommandItem
+                key={p.id}
+                value={p.name}
+                onSelect={() => {
+                  setNewAppt(prev => ({ ...prev, patientId: p.id, patient: p.name }));
+                }}
+              >
+                <CheckCircle2
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    newAppt.patientId === p.id ? "opacity-100 text-blue-600" : "opacity-0"
+                  )}
+                />
+                {p.name} {p.dob ? `(${Math.abs(new Date(Date.now() - new Date(p.dob).getTime()).getUTCFullYear() - 1970)} y/o)` : ''} - Joined: {new Date(p.created_at).toLocaleDateString()}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </PopoverContent>
+  </Popover>
+</div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
