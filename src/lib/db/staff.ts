@@ -223,7 +223,7 @@ export async function fetchDashboardStats(): Promise<{
       .lt('scheduled_at', endOfDay),
     supabase
       .from('invoices')
-      .select('amount, paid')
+      .select("amount, status")
       .neq('status', 'paid'),
     supabase
       .from('clinic_patient_links')
@@ -238,8 +238,8 @@ export async function fetchDashboardStats(): Promise<{
       .eq('escalated_to_doctor', true),
   ]);
 
-  const invoices = (invoiceRes.data ?? []) as { amount: number; paid: number }[];
-  const outstanding = invoices.reduce((s, i) => s + (i.amount - (i.paid ?? 0)), 0);
+  const invoices = (invoiceRes.data ?? []) as { amount: number; status: string }[];
+  const outstanding = invoices.reduce((s, i) => s + (i.status === "paid" ? 0 : i.amount), 0);
 
   return {
     todayAppointments: apptRes.count ?? 0,

@@ -219,7 +219,7 @@ export default function BillingPage() {
         discount_percent: r.discount_percent ?? 0,
         discount_amount: r.discount_amount ?? 0,
         amount: r.amount,
-        paid: r.paid ?? 0,
+        paid: r.status === "paid" ? r.amount : (r.paid ?? 0),
         status: r.status,
         method: "",
         notes: r.notes ?? "",
