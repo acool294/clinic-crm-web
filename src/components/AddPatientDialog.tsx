@@ -38,10 +38,10 @@ export function AddPatientDialog({ open, onOpenChange, staffProfile, onSuccess }
 
   useEffect(() => {
     if (open) {
-      supabase.from('staff_users').select('id, name').eq('role', 'doctor').then(({data}) => {
+      supabase.from('staff_users').select('id, name, role').ilike('role', 'doctor').then(({data}) => {
         if (data) {
           setDoctorsList(data);
-          if (staffProfile?.role === 'doctor') {
+          if (staffProfile?.role?.toLowerCase() === 'doctor') {
             setAppointmentDetails(prev => ({ ...prev, doctorId: staffProfile.id }));
           }
         }
@@ -260,7 +260,7 @@ export function AddPatientDialog({ open, onOpenChange, staffProfile, onSuccess }
                     <SelectTrigger><SelectValue placeholder="Select Doctor"/></SelectTrigger>
                     <SelectContent>
                       {doctorsList.map(d => (
-                        <SelectItem key={d.id} value={d.id}>Dr. {d.name}</SelectItem>
+                        <SelectItem key={d.id} value={d.id}>{d.name.startsWith("Dr.") ? d.name : "Dr. " + d.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -251,7 +251,7 @@ function mapDbStatus(s: string): AppointmentStatus {
 
 export default function CalendarPage() {
   const { staffProfile } = useAuth();
-  const isDoctor = staffProfile?.role === "doctor";
+  const isDoctor = staffProfile?.role?.toLowerCase() === "doctor";
   const currentDoctorName = staffProfile?.name ?? "";
 
   const [view, setView] = useState<CalendarView>("week");
@@ -291,6 +291,7 @@ export default function CalendarPage() {
   // New Appointment Modal State
   const [isNewDialogOpen, setIsNewDialogOpen] = useState<boolean>(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [newAppt, setNewAppt] = useState({ patient: "", patientId: "", doctorId: "",
     doctor: "", // will be auto-set based on role
     date: format(new Date(), "yyyy-MM-dd"),
@@ -298,6 +299,13 @@ export default function CalendarPage() {
     duration: 30,
     type: "Consultation" as AppointmentType,
   });
+
+  
+  useEffect(() => {
+    supabase.from('staff_users').select('id, name, role').ilike('role', 'doctor').then(({data}) => {
+      if (data) setDoctorsList(data);
+    });
+  }, []);
 
   useEffect(() => {
     if (isDoctor && currentDoctorName) {
@@ -1313,8 +1321,8 @@ export default function CalendarPage() {
                 ) : (
                   // Receptionist/admin sees all doctors dropdown
                   <Select
-                    value={newAppt.doctor}
-                    onValueChange={(v) => setNewAppt(prev => ({ ...prev, doctor: v }))}
+                    value={newAppt.doctorId}
+                    onValueChange={(v) => setNewAppt(prev => ({ ...prev, doctorId: v }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select doctor..." />
