@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPatients } from '@/lib/db/patients';
 
 import { useState, useMemo, useEffect } from "react";
+import useSWR from "swr";
 import { useAuth } from "@/lib/auth-context";
 import {
   Select,
@@ -256,21 +257,14 @@ export default function CalendarPage() {
 
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patientsList, setPatientsList] = useState<any[]>([]);
-  const [apptLoading, setApptLoading] = useState(true);
-
-  useEffect(() => {
-    loadAppointments();
-    fetchPatients().then(setPatientsList).catch(() => {});
-  }, []);
-
-  async function loadAppointments() {
-    try {
-      setApptLoading(true);
-      const rows = await fetchAppointments();
-      const mapped: Appointment[] = rows.map((r) => ({
+    // Real-time SWR Fetching
+  const { data: fetchedAppointments, mutate: mutateAppointments, isLoading: apptLoading } = useSWR(
+    'appointments',
+    async () => {
+      const appts = await fetchAppointments();
+      return appts.map((r: any) => ({
         id: r.id,
+        patientId: r.patient_id,
         patient: r.patient_name,
         date: r.scheduled_at.split("T")[0],
         time: r.scheduled_at.split("T")[1]?.substring(0, 5) ?? "09:00",
@@ -279,13 +273,30 @@ export default function CalendarPage() {
         doctor: r.doctor_name,
         status: mapDbStatus(r.status),
       }));
-      setAppointments(mapped);
-    } catch {
-      // silently fail, show empty calendar
-    } finally {
-      setApptLoading(false);
-    }
-  }
+    },
+    { fallbackData: [], refreshInterval: 0 } // Rely on realtime subscription instead of polling
+  );
+
+  const appointments = fetchedAppointments || [];
+
+  const [patientsList, setPatientsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchPatients().then(setPatientsList).catch(() => {});
+    
+    // Supabase Realtime Subscription for Instant Sync
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
+        console.log('Realtime Appointment Change:', payload);
+        mutateAppointments(); // Instantly trigger SWR cache revalidation
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mutateAppointments]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   // New Appointment Modal State
@@ -417,9 +428,7 @@ export default function CalendarPage() {
     } catch (err) {
       console.error("Failed to check in appointment", err);
     }
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: "checked_in" } : a))
-    );
+    mutateAppointments();
     setSelectedAppointment((prev) =>
       prev && prev.id === id ? { ...prev, status: "checked_in" } : prev
     );
@@ -433,7 +442,7 @@ export default function CalendarPage() {
     } catch (err) {
       console.error("Failed to cancel appointment", err);
     }
-    await loadAppointments();
+    await mutateAppointments();
     setSelectedAppointment((prev) =>
       prev && prev.id === id ? { ...prev, status: "cancelled" } : prev
     );
@@ -462,9 +471,7 @@ export default function CalendarPage() {
         status: "scheduled",
       };
 
-      setAppointments((prev) =>
-        prev.map((apt) => (apt.id === selectedAppointment.id ? updatedApt : apt))
-      );
+      mutateAppointments();
       setSelectedAppointment(updatedApt);
       setIsRescheduleOpen(false);
     } catch (err) {
@@ -499,7 +506,7 @@ export default function CalendarPage() {
         duration_minutes: Number(newAppt.duration),
         appointment_type: newAppt.type
       });
-      await loadAppointments();
+      await mutateAppointments();
       setIsNewDialogOpen(false);
       setNewAppt({
         patient: '',

@@ -30,3 +30,10 @@ To deploy to Vercel:
 2. Run `npx vercel link` to connect this repository to a Vercel project.
 3. Add the `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` variables to your Vercel project settings.
 4. Push to the `main` branch to trigger a deployment.
+
+
+## Future Roadmap (Parked Ideas)
+
+*   **Patient Engagement Automation:** Automated WhatsApp/SMS reminders (via Twilio/Meta API) for appointment confirmations and 24-hour reminders to reduce no-show rates.
+*   **Automated Follow-ups:** Automatically flag patients who haven't visited in 6+ months for routine check-ups.
+*   **Payment Gateways:** Razorpay/Stripe integration for generating payment links directly on invoices.

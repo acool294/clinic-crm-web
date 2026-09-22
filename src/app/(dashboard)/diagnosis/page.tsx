@@ -286,6 +286,45 @@ export default function DiagnosisPage() {
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
 
   // When patient selection changes, load their baseline information
+  
+  // Auto-Save Draft Logic
+  useEffect(() => {
+    if (!selectedPatientId) return;
+    const draftKey = `draft_diagnosis_${selectedPatientId}`;
+    const draft = localStorage.getItem(draftKey);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.vitals) setVitals(parsed.vitals);
+        if (parsed.chiefComplaint !== undefined) setChiefComplaint(parsed.chiefComplaint);
+        if (parsed.diagnosis !== undefined) setDiagnosis(parsed.diagnosis);
+        if (parsed.treatmentPlan !== undefined) setTreatmentPlan(parsed.treatmentPlan);
+        if (parsed.prescriptions) setPrescriptions(parsed.prescriptions);
+      } catch (e) {
+        console.error('Failed to parse draft', e);
+      }
+    } else {
+      // Clear forms if no draft
+      setVitals({ bp: '', hr: '', temp: '', spo2: '', weight: '', height: '' });
+      setChiefComplaint('');
+      setDiagnosis('');
+      setTreatmentPlan('');
+      setPrescriptions([]);
+    }
+  }, [selectedPatientId]);
+
+  useEffect(() => {
+    if (!selectedPatientId) return;
+    const draftKey = `draft_diagnosis_${selectedPatientId}`;
+    const draftData = { vitals, chiefComplaint, diagnosis, treatmentPlan, prescriptions };
+    // Only save if there's actually some data
+    const hasData = Object.values(vitals).some(v => v) || chiefComplaint || diagnosis || treatmentPlan || prescriptions.length > 0;
+    if (hasData) {
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+    }
+  }, [vitals, chiefComplaint, diagnosis, treatmentPlan, prescriptions, selectedPatientId]);
+
+
   const handleSelectPatient = (newPatientId: string) => {
     setSelectedPatientId(newPatientId);
     
@@ -451,7 +490,12 @@ export default function DiagnosisPage() {
         }
       }
 
+      
       setSavedSuccess(true);
+      if (selectedPatientId) {
+         localStorage.removeItem(`draft_diagnosis_${selectedPatientId}`);
+      }
+
       setTimeout(() => setSavedSuccess(false), 3000);
 
       // Refresh sidebar visits & active medications
