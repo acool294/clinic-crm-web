@@ -234,3 +234,35 @@ describe("audit log", () => {
     expect(anon).toMatch(/permission denied/);
   });
 });
+
+describe("staff functions", () => {
+  it("creates staff with roles and departments in one go", async () => {
+    const { rows } = await db.query<{ id: string }>("insert into auth.users (email) values ('newdoc@asha.test') returning id");
+    const id = await asUser(db, clinic.users.owner, async (tx) =>
+      (
+        await tx.query<{ id: string }>(
+          "select public.save_staff(null, $1, 'Dr New', 'newdoc@asha.test', null, 'MD', 'KMC 123', '{doctor}', $2) as id",
+          [rows[0].id, [clinic.specialties.pediatrics]],
+        )
+      ).rows[0].id,
+    );
+    const roles = await db.query<{ role: string }>("select role::text from public.staff_roles where staff_id = $1", [id]);
+    expect(roles.rows).toEqual([{ role: "doctor" }]);
+    const msg = await rejects(() =>
+      asUser(db, clinic.users.receptionist, (tx) =>
+        tx.query("select public.save_staff($1, null, 'X', 'x', null, null, null, '{owner}', '{}')", [id]),
+      ),
+    );
+    expect(msg).toMatch(/row-level security|not editable/);
+  });
+
+  it("lets the owner change a role's permissions", async () => {
+    await asUser(db, clinic.users.owner, (tx) =>
+      tx.query("select public.set_role_permissions('receptionist', '{patients.read,appointments.read}')"),
+    );
+    const perms = await asUser(db, clinic.users.receptionist, async (tx) =>
+      (await tx.query<{ permissions: string[] }>("select permissions from public.my_access()")).rows[0].permissions,
+    );
+    expect(perms).toEqual(["appointments.read", "patients.read"]);
+  });
+});

@@ -75,7 +75,6 @@ create table public.clinics (
   invoice_prefix text not null default 'INV',
   default_slot_minutes int not null default 15 check (default_slot_minutes between 5 and 240),
   mfa_required_roles public.app_role[] not null default '{owner,doctor}',
-  session_timeout_minutes int not null default 30 check (session_timeout_minutes between 5 and 720),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -513,6 +512,7 @@ declare
   v_clinic uuid;
   v_staff uuid;
 begin
+  lock table public.clinics in exclusive mode;
   if exists (select 1 from public.clinics) then
     raise exception 'The clinic is already set up' using errcode = 'unique_violation';
   end if;

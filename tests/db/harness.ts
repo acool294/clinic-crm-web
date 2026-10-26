@@ -4,14 +4,14 @@ import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 
-const root = path.resolve(__dirname, "../..");
+const root = path.resolve(import.meta.dirname, "../..");
 const migrationsDir = path.join(root, "supabase/migrations");
 
 export type Role = "owner" | "doctor" | "nurse" | "receptionist" | "billing";
 
 export async function createDb(): Promise<PGlite> {
   const db = new PGlite({ extensions: { pg_trgm, btree_gist } });
-  await db.exec(readFileSync(path.join(__dirname, "supabase-shim.sql"), "utf8"));
+  await db.exec(readFileSync(path.join(import.meta.dirname, "supabase-shim.sql"), "utf8"));
   for (const file of readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()) {
     try {
       await db.exec(readFileSync(path.join(migrationsDir, file), "utf8"));
