@@ -19,7 +19,7 @@ export function DemoForm() {
             <li key={l.email}><code className="select-all">{l.email}</code> <span className="text-muted">({l.role})</span></li>
           ))}
         </ul>
-        <p className="text-xs text-muted">Sign out and sign in as any of them to see what that role can do. Doctors no longer need an authenticator app; turn it back on in Settings → Clinic before real use.</p>
+        <p className="text-xs text-muted">Sign out and sign in as any of them to see what that role can do.</p>
       </div>
     );
   }

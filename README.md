@@ -63,8 +63,9 @@ data are shown).
 
 ## Sign-in
 
-Password or one-time email link, password reset, show/hide password, two-step
-sign-in for owners and doctors, idle sign-out after 30 minutes. There is no public
+Email and password (or a one-time email link), password reset, show/hide password,
+idle sign-out after 30 minutes. Two-step sign-in is off by default; the owner can
+require it for owners and doctors in Settings → Clinic. There is no public
 sign-up: the first visit creates the clinic and its owner (`/setup`, once), and new
 staff use **Request access**, which the owner approves in Settings → Staff (that sends
 the invite).

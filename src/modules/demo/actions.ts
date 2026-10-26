@@ -30,8 +30,6 @@ export async function loadDemoData(_: DemoState, formData: FormData): Promise<De
 
     const password = demoPassword();
     const result = await seedDemo(createAdminClient(), password, { patients: 25, pastDays: 14, futureDays: 5 });
-    // demo doctors sign in without an authenticator app; the owner still needs one
-    await supabase.from("clinics").update({ mfa_required_roles: ["owner"] }).eq("id", session.clinicId);
     revalidatePath("/", "layout");
     return {
       ok: true,

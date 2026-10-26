@@ -37,7 +37,7 @@ export const clinicSchema = z.object({
   mrn_prefix: z.string().trim().regex(/^[A-Z0-9]{1,8}$/, "Up to 8 capital letters or digits"),
   invoice_prefix: z.string().trim().regex(/^[A-Z0-9]{1,8}$/, "Up to 8 capital letters or digits"),
   default_slot_minutes: z.coerce.number().int().min(5).max(240),
-  mfa_doctors: z.literal("on").optional(),
+  mfa_required: z.literal("on").optional(),
 });
 
 export function openingHoursFrom(form: Record<string, unknown>) {

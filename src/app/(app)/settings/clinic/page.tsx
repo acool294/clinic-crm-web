@@ -66,8 +66,8 @@ export default async function ClinicSettingsPage() {
             <Field label="Default slot (minutes)"><Input name="default_slot_minutes" type="number" min={5} max={240} defaultValue={c.default_slot_minutes} /></Field>
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm">
-            <input type="checkbox" name="mfa_doctors" defaultChecked={c.mfa_required_roles.includes("doctor")} />
-            Doctors must use two-step sign-in (always on for owners)
+            <input type="checkbox" name="mfa_required" defaultChecked={c.mfa_required_roles.length > 0} />
+            Owners and doctors must also enter a code from an authenticator app when signing in (optional, recommended later)
           </label>
         </Card>
         <div><SubmitButton>Save clinic details</SubmitButton></div>

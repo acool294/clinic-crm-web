@@ -146,7 +146,7 @@ export async function setupClinic(_: ActionState, formData: FormData): Promise<A
 
   const supabase = await createClient();
   await supabase.auth.signInWithPassword({ email, password });
-  redirect("/mfa?next=/settings/clinic");
+  redirect("/settings/clinic");
 }
 
 // ---------------------------------------------------------------------------

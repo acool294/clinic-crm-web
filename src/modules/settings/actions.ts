@@ -34,14 +34,14 @@ export async function saveClinic(_: ActionState, formData: FormData): Promise<Ac
     const form = formObject(formData);
     const parsed = clinicSchema.safeParse(form);
     if (!parsed.success) return fromZod(parsed.error);
-    const { mfa_doctors, ...values } = parsed.data;
+    const { mfa_required, ...values } = parsed.data;
     const supabase = await createClient();
     const { error } = await supabase
       .from("clinics")
       .update({
         ...values,
         opening_hours: openingHoursFrom(form),
-        mfa_required_roles: mfa_doctors ? ["owner", "doctor"] : ["owner"],
+        mfa_required_roles: mfa_required ? ["owner", "doctor"] : [],
       })
       .eq("id", session.clinicId);
     if (error) return fromError(error);

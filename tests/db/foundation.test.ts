@@ -168,7 +168,20 @@ describe("access", () => {
 });
 
 describe("two-factor", () => {
-  it("holds back owner permissions until the second factor is done", async () => {
+  it("is off by default", async () => {
+    const { rows } = await db.query<{ n: number }>("select cardinality(mfa_required_roles) as n from public.clinics where id = $1", [clinic.clinicId]);
+    expect(rows[0].n).toBe(0);
+    const ok = await asUser(
+      db,
+      clinic.users.owner,
+      async (tx) => (await tx.query<{ ok: boolean }>("select app.has_permission('settings.manage') as ok")).rows[0].ok,
+      { aal: "aal1" },
+    );
+    expect(ok).toBe(true);
+  });
+
+  it("holds back owner permissions until the second factor is done, when switched on", async () => {
+    await db.query("update public.clinics set mfa_required_roles = '{owner,doctor}' where id = $1", [clinic.clinicId]);
     const aal1 = await asUser(
       db,
       clinic.users.owner,
@@ -180,6 +193,7 @@ describe("two-factor", () => {
       (await tx.query<{ ok: boolean }>("select app.has_permission('settings.manage') as ok")).rows[0].ok,
     );
     expect(aal2).toBe(true);
+    await db.query("update public.clinics set mfa_required_roles = '{}' where id = $1", [clinic.clinicId]);
   });
 
   it("does not require it from a receptionist", async () => {
