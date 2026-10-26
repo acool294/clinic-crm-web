@@ -17,3 +17,19 @@ export async function cancelMessage(id: string): Promise<ActionState> {
     return fromError(e);
   }
 }
+
+/** "Send now" on the Messages page: queue whatever is due and send it, without waiting for the daily run. */
+export async function sendMessagesNow(): Promise<ActionState> {
+  try {
+    await assertPermission("messages.manage");
+    const { runMessageJob } = await import("./job");
+    const r = await runMessageJob(100);
+    revalidatePath("/messages");
+    return {
+      ok: true,
+      message: `Queued ${r.enqueued} new. Sent ${r.sent}, skipped ${r.skipped}, failed ${r.failed}.`,
+    };
+  } catch (e) {
+    return fromError(e);
+  }
+}

@@ -236,6 +236,25 @@ describe("messaging", () => {
     expect(optedOut.rows[0].n).toBe(0);
   });
 
+  it("reminds every appointment tomorrow from one morning run", async () => {
+    await db.query("update public.patients set messaging_opt_out_at = null where id = $1", [patientId]);
+    await db.query("delete from public.message_queue");
+    // tomorrow 20:00 clinic time is well outside a 24-hour window from 08:00 today
+    const { rows } = await db.query<{ id: string }>(
+      `insert into public.appointments (clinic_id, patient_id, doctor_id, starts_at, ends_at)
+       values ($1, $2, $3,
+         (((now() at time zone 'Asia/Kolkata')::date + 1) + time '20:00') at time zone 'Asia/Kolkata',
+         (((now() at time zone 'Asia/Kolkata')::date + 1) + time '20:15') at time zone 'Asia/Kolkata') returning id`,
+      [clinic.clinicId, patientId, clinic.staff.billing],
+    );
+    const morning = await db.query<{ n: number }>(
+      "select public.enqueue_due_messages(((now() at time zone 'Asia/Kolkata')::date + time '08:00') at time zone 'Asia/Kolkata') as n",
+    );
+    expect(morning.rows[0].n).toBeGreaterThanOrEqual(1);
+    const queued = await db.query("select 1 from public.message_queue where related_id = $1", [rows[0].id]);
+    expect(queued.rows.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("is not callable by staff", async () => {
     const msg = await rejects(() =>
       asUser(db, clinic.users.owner, (tx) => tx.query("select public.enqueue_due_messages()")),

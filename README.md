@@ -68,9 +68,12 @@ CI runs all of these on every pull request.
 
 ## Messaging
 
-`/api/jobs/run` (Vercel Cron every 10 minutes, `Authorization: Bearer $CRON_SECRET`)
-queues reminders, follow-ups, vaccination dues, birthdays, recalls and feedback
-requests, then sends them. WhatsApp needs approved templates: put each template's
+Booking confirmations and receipts are sent right after the booking or payment.
+Everything else goes out on one daily run: `/api/jobs/run` (Vercel Cron at 8:00 IST,
+`Authorization: Bearer $CRON_SECRET`, fine on the Hobby plan) queues reminders for
+tomorrow's appointments, follow-ups, vaccination dues, birthdays, recalls and
+feedback requests, then sends them. **Send now** on the Messages page runs the same
+job on demand; failed sends retry on the next run or the next Send now. WhatsApp needs approved templates: put each template's
 name in Settings → Messages; its variables are filled in the order the
 placeholders appear. SMS goes through MSG91 with a DLT template. Without provider
 keys, messages are marked *skipped*, never faked. Point the WhatsApp webhook at

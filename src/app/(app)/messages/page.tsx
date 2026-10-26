@@ -6,7 +6,7 @@ import { Badge, Card, EmptyState, PageHeader, Table } from "@/components/ui/layo
 import { can, requirePermission } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { cancelMessage } from "@/modules/messages/actions";
+import { cancelMessage, sendMessagesNow } from "@/modules/messages/actions";
 
 export const metadata = { title: "Messages" };
 const tone = { queued: "neutral", sending: "brand", sent: "brand", delivered: "ok", read: "ok", failed: "danger", cancelled: "neutral", skipped: "warn" } as const;
@@ -24,8 +24,15 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
     <>
       <PageHeader
         title="Messages"
-        description="Reminders, follow-ups and receipts. Sent every 10 minutes by the scheduled job; patients who reply STOP are opted out."
-        actions={can(session, "messages.manage") && <Link href="/settings/messages" className={buttonClass("secondary")}>Templates and recalls</Link>}
+        description="Booking confirmations and receipts go out straight away. Reminders, follow-ups, vaccination dues, birthdays and recalls go out every morning at 8:00, or press Send now. Patients who reply STOP are opted out."
+        actions={
+          can(session, "messages.manage") && (
+            <>
+              <ActionButton action={sendMessagesNow} variant="primary" showResult>Send now</ActionButton>
+              <Link href="/settings/messages" className={buttonClass("secondary")}>Templates and recalls</Link>
+            </>
+          )
+        }
       />
       <Card>
         <form className="mb-4 flex gap-2">

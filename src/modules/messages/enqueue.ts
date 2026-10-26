@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import type { Json } from "@/lib/database.types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -44,5 +45,11 @@ export async function enqueueForPatient(opts: {
       related_id: opts.relatedId ?? null,
       dedupe_key: opts.relatedId ? `${opts.key}:${opts.relatedId}:${r.channel}:${Date.now()}` : null,
     }));
-  if (rows.length) await admin.from("message_queue").insert(rows);
+  if (!rows.length) return;
+  await admin.from("message_queue").insert(rows);
+  // send it once the response is out, instead of waiting for the daily run
+  after(async () => {
+    const { runMessageJob } = await import("./job");
+    await runMessageJob(20).catch((e) => console.error("message send failed", e));
+  });
 }
