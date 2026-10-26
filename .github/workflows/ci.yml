@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, rebuild]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Database types match the migrations
+        run: npm run gen:types -- --check
+      - run: npm run typecheck
+      - run: npx eslint .
+      - name: Tests (RLS tests sign in as every role against PGlite)
+        run: npm test
+      - name: Build
+        run: npx next build
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder-anon-key-000000
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-key-0000
