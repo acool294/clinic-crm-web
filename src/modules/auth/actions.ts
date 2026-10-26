@@ -13,6 +13,17 @@ async function clientIp() {
   return (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "unknown";
 }
 
+/** "fetch failed" means the server cannot reach Supabase at all; say where to look. */
+function unreachable(message: string): string {
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED/i.test(message)) {
+    return "The app cannot reach the database. Open /api/health on this site to see which setting is wrong (usually SUPABASE_URL on Vercel).";
+  }
+  if (/function .* does not exist|PGRST202|Could not find the function/i.test(message)) {
+    return "The database is reachable but the migrations have not been applied. Run the files in supabase/migrations.";
+  }
+  return message;
+}
+
 function safeNext(next: unknown): string {
   return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
@@ -30,7 +41,8 @@ export async function login(_: ActionState, formData: FormData): Promise<ActionS
   const ip = await clientIp();
   const admin = createAdminClient();
 
-  const { data: allowed } = await admin.rpc("login_allowed", { p_email: email, p_ip: ip });
+  const { data: allowed, error: limitError } = await admin.rpc("login_allowed", { p_email: email, p_ip: ip });
+  if (limitError) return { ok: false, message: unreachable(limitError.message) };
   if (allowed === false) {
     return { ok: false, message: "Too many failed attempts. Wait 15 minutes and try again." };
   }
@@ -113,12 +125,13 @@ export async function setupClinic(_: ActionState, formData: FormData): Promise<A
   if (!parsed.success) return fromZod(parsed.error);
   const admin = createAdminClient();
 
-  const { data: done } = await admin.rpc("clinic_is_set_up");
+  const { data: done, error: checkError } = await admin.rpc("clinic_is_set_up");
+  if (checkError) return { ok: false, message: unreachable(checkError.message) };
   if (done) return { ok: false, message: "The clinic is already set up. Sign in instead." };
 
   const { clinicName, ownerName, email, password } = parsed.data;
   const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (error || !created.user) return { ok: false, message: error?.message ?? "Could not create the account." };
+  if (error || !created.user) return { ok: false, message: unreachable(error?.message ?? "Could not create the account.") };
 
   const { error: bootError } = await admin.rpc("bootstrap_clinic", {
     p_clinic_name: clinicName,
@@ -162,4 +175,54 @@ export async function setPassword(_: ActionState, formData: FormData): Promise<A
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return { ok: false, message: error.message };
   redirect("/");
+}
+
+// ---------------------------------------------------------------------------
+// Email sign-in link (staff only; never creates accounts)
+// ---------------------------------------------------------------------------
+
+export async function sendSignInLink(_: ActionState, formData: FormData): Promise<ActionState> {
+  const email = z.string().trim().toLowerCase().email().safeParse(formData.get("email"));
+  if (!email.success) return { ok: false, fieldErrors: { email: ["Enter a valid email"] } };
+  const ip = await clientIp();
+  const admin = createAdminClient();
+  const { data: allowed } = await admin.rpc("login_allowed", { p_email: email.data, p_ip: ip });
+  if (allowed === false) return { ok: false, message: "Too many attempts. Wait 15 minutes and try again." };
+  const supabase = await createClient();
+  const next = safeNext(formData.get("next"));
+  await supabase.auth.signInWithOtp({
+    email: email.data,
+    options: { shouldCreateUser: false, emailRedirectTo: `${env().APP_URL}/auth/confirm?next=${encodeURIComponent(next)}` },
+  });
+  // same answer whether or not the account exists
+  return { ok: true, message: "If that email belongs to a staff account, a sign-in link is on its way. It works once, for one hour." };
+}
+
+// ---------------------------------------------------------------------------
+// Request access (no account is created; the owner approves with an invite)
+// ---------------------------------------------------------------------------
+
+const requestSchema = z.object({
+  full_name: z.string().trim().min(2, "Enter your name").max(120),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  phone: z.string().trim().max(20).optional(),
+  role: z.enum(["doctor", "nurse", "receptionist", "billing"]).optional(),
+  message: z.string().trim().max(1000).optional(),
+  website: z.string().max(0).optional(), // honeypot: people leave it empty
+});
+
+export async function requestAccess(_: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = requestSchema.safeParse(Object.fromEntries([...formData.entries()].filter(([, v]) => v !== "")));
+  if (!parsed.success) return fromZod(parsed.error);
+  const v = parsed.data;
+  const { error } = await createAdminClient().rpc("submit_access_request", {
+    p_full_name: v.full_name,
+    p_email: v.email,
+    p_phone: v.phone ?? null,
+    p_role: v.role ?? null,
+    p_message: v.message ?? null,
+    p_ip: await clientIp(),
+  });
+  if (error) return { ok: false, message: unreachable(error.message.replace(/^.*Too many/, "Too many")) };
+  return { ok: true, message: "Thanks. The clinic owner will review your request and email you an invite." };
 }

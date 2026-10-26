@@ -266,3 +266,27 @@ describe("staff functions", () => {
     expect(perms).toEqual(["appointments.read", "patients.read"]);
   });
 });
+
+describe("access requests", () => {
+  it("records a request for the owner and hides it from others", async () => {
+    await db.query("select public.submit_access_request('New Nurse', 'asker@x.test', null, 'nurse', 'Joined Monday', '5.5.5.5')");
+    // asking twice does not create a second request
+    await db.query("select public.submit_access_request('New Nurse', 'ASKER@x.test', null, 'nurse', null, '5.5.5.5')");
+    const owner = await asUser(db, clinic.users.owner, async (tx) =>
+      (await tx.query<{ email: string }>("select email from public.access_requests")).rows,
+    );
+    expect(owner).toEqual([{ email: "asker@x.test" }]);
+    const nurse = await asUser(db, clinic.users.nurse, async (tx) => (await tx.query("select * from public.access_requests")).rows.length);
+    expect(nurse).toBe(0);
+    const anon = await rejects(() =>
+      asUser(db, null, (tx) => tx.query("select public.submit_access_request('a b', 'a@b.c', null, null, null, '1')")),
+    );
+    expect(anon).toMatch(/permission denied/);
+  });
+
+  it("limits requests per network", async () => {
+    for (let i = 0; i < 4; i++) await db.query(`select public.submit_access_request('Spam ${i}', 'spam${i}@x.test', null, null, null, '5.5.5.5')`);
+    const msg = await rejects(() => db.query("select public.submit_access_request('Spam', 'spam9@x.test', null, null, null, '5.5.5.5')"));
+    expect(msg).toMatch(/Too many/);
+  });
+});

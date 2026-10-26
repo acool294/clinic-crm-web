@@ -49,11 +49,25 @@ scripts/               gen-types, seed
 2. In Supabase Auth: turn on **TOTP MFA**, turn off public sign-ups, set the Site URL to your
    app URL, and change the **Invite** and **Reset password** email templates to link to
    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/set-password`
-   (use `type=recovery` for the reset template).
+   (use `type=recovery` for the reset template, and
+   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/` for the **Magic link** template).
 3. `cp .env.example .env.local` and fill in the Supabase URL, anon key and service-role key.
 4. `npm install && npm run dev`, open http://localhost:3000. The first visit goes to
    `/setup`, which creates the clinic and you as its owner (it works once).
-5. Optional demo data for staging: `SEED_PASSWORD=... npm run seed` (with the same env vars).
+5. Optional demo data for a test clinic: sign in as the owner and use **Settings → Demo data**
+   (it shows the demo logins and a one-time password), or run `SEED_PASSWORD=... npm run seed`.
+
+If something fails after deploying, open `/api/health`: it says which settings are
+missing, whether Supabase answers, and whether the migrations are applied (no keys or
+data are shown).
+
+## Sign-in
+
+Password or one-time email link, password reset, show/hide password, two-step
+sign-in for owners and doctors, idle sign-out after 30 minutes. There is no public
+sign-up: the first visit creates the clinic and its owner (`/setup`, once), and new
+staff use **Request access**, which the owner approves in Settings → Staff (that sends
+the invite).
 
 ## Checks
 

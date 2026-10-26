@@ -6,7 +6,7 @@ import { can, requirePermission } from "@/lib/auth/session";
 import { ROLE_LABELS, ROLES } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { addLeave, addSchedule, deleteSchedule, inviteStaff, setStaffActive, updateStaff } from "@/modules/settings/actions";
+import { addLeave, addSchedule, decideAccessRequest, deleteSchedule, inviteStaff, setStaffActive, updateStaff } from "@/modules/settings/actions";
 import { WEEKDAY_LABELS } from "@/modules/settings/schemas";
 
 export const metadata = { title: "Staff" };
@@ -41,6 +41,9 @@ export default async function StaffPage() {
   const session = await requirePermission("staff.read");
   const manage = can(session, "staff.manage");
   const supabase = await createClient();
+  const { data: requests } = manage
+    ? await supabase.from("access_requests").select("*").eq("status", "pending").order("created_at")
+    : { data: [] };
   const [{ data: staff }, { data: specialties }, { data: schedules }, { data: rooms }, { data: leaves }] = await Promise.all([
     supabase
       .from("staff")
@@ -58,6 +61,31 @@ export default async function StaffPage() {
   return (
     <>
       <PageHeader title="Staff" description="Who can sign in, what they can do, and when doctors see patients." />
+
+      {manage && requests && requests.length > 0 && (
+        <Card title={`Access requests (${requests.length})`} className="mb-6 border-warn">
+          <ul className="flex flex-col gap-4">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-md bg-bg p-3">
+                <p className="text-sm">
+                  <span className="font-medium">{r.full_name}</span> · {r.email} {r.phone && `· ${r.phone}`}
+                  {r.requested_role && <Badge className="ml-2">{ROLE_LABELS[r.requested_role]}</Badge>}
+                  <span className="ml-2 text-xs text-muted">{formatDate(r.created_at)}</span>
+                </p>
+                {r.message && <p className="mt-1 text-sm text-muted">{r.message}</p>}
+                <ActionForm action={decideAccessRequest.bind(null, r.id)} className="mt-3 gap-3">
+                  <RolePicker selected={r.requested_role ? [r.requested_role] : []} />
+                  <SpecialtyPicker specialties={specs} />
+                  <div className="flex gap-2">
+                    <SubmitButton size="sm" name="decision" value="approve">Approve and invite</SubmitButton>
+                    <SubmitButton size="sm" variant="ghost" name="decision" value="decline" formNoValidate>Decline</SubmitButton>
+                  </div>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {manage && (
         <Card title="Invite someone" className="mb-6">

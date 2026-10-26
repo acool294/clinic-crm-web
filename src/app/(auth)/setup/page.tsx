@@ -11,7 +11,7 @@ export default async function SetupPage() {
   if (setUp) redirect("/login");
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold">Set up the clinic</h1>
+      <h1 className="mb-1 text-2xl font-semibold">Set up the clinic</h1>
       <p className="mb-6 text-sm text-muted">This runs once. You become the clinic&apos;s owner.</p>
       <SetupForm />
     </>

@@ -8,4 +8,5 @@ export const SETTINGS_TABS: { href: string; label: string; need: Permission }[] 
   { href: "/settings/messages", label: "Messages", need: "messages.manage" },
   { href: "/settings/roles", label: "Roles", need: "settings.manage" },
   { href: "/settings/audit", label: "Audit log", need: "audit.read" },
+  { href: "/settings/demo", label: "Demo data", need: "settings.manage" },
 ];

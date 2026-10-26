@@ -8,6 +8,66 @@ export type Database = {
   };
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          email: string;
+          full_name: string;
+          id: string;
+          ip: string | null;
+          message: string | null;
+          phone: string | null;
+          requested_role: Database["public"]["Enums"]["app_role"] | null;
+          status: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          email: string;
+          full_name: string;
+          id?: string;
+          ip?: string | null;
+          message?: string | null;
+          phone?: string | null;
+          requested_role?: Database["public"]["Enums"]["app_role"] | null;
+          status?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          email?: string;
+          full_name?: string;
+          id?: string;
+          ip?: string | null;
+          message?: string | null;
+          phone?: string | null;
+          requested_role?: Database["public"]["Enums"]["app_role"] | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      };
       appointment_status_history: {
         Row: {
           appointment_id: string;
@@ -3214,6 +3274,10 @@ export type Database = {
       start_encounter: {
         Args: { p_appointment: string | null };
         Returns: string;
+      };
+      submit_access_request: {
+        Args: { p_full_name: string | null; p_email: string | null; p_phone: string | null; p_role: Database["public"]["Enums"]["app_role"] | null; p_message: string | null; p_ip: string | null };
+        Returns: boolean;
       };
       submit_feedback: {
         Args: { p_token: string | null; p_score: number | null; p_comment: string | null };
