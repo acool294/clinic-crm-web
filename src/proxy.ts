@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const IDLE_MINUTES = 30;
 const LAST_SEEN = "crm_last_seen";
 
-const PUBLIC_PATHS = ["/login", "/setup", "/auth", "/f/", "/api/jobs", "/api/webhooks", "/forgot-password"];
+const PUBLIC_PATHS = ["/login", "/setup", "/auth", "/f/", "/api/jobs", "/api/webhooks", "/api/health", "/forgot-password", "/request-access"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

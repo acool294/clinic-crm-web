@@ -84,40 +84,72 @@ function staffForm(formData: FormData) {
   return { ...form, roles: formData.getAll("roles"), specialties: formData.getAll("specialties") };
 }
 
+async function sendInvite(v: z.infer<typeof inviteSchema>): Promise<ActionState> {
+  const admin = createAdminClient();
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(v.email, {
+    redirectTo: `${env().APP_URL}/auth/confirm?next=/set-password`,
+    data: { full_name: v.full_name },
+  });
+  if (inviteError || !invited.user) {
+    return { ok: false, message: inviteError?.message ?? "Could not send the invite." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_staff", {
+    p_staff_id: null,
+    p_user_id: invited.user.id,
+    p_full_name: v.full_name,
+    p_email: v.email,
+    p_phone: v.phone,
+    p_title: v.title,
+    p_registration_number: v.registration_number,
+    p_roles: v.roles,
+    p_specialties: v.specialties,
+  });
+  if (error) {
+    await admin.auth.admin.deleteUser(invited.user.id);
+    return fromError(error);
+  }
+  return { ok: true, message: `Invite sent to ${v.email}.` };
+}
+
 export async function inviteStaff(_: ActionState, formData: FormData): Promise<ActionState> {
   try {
     await assertPermission("staff.manage");
     const parsed = inviteSchema.safeParse(staffForm(formData));
     if (!parsed.success) return fromZod(parsed.error);
-    const v = parsed.data;
+    const result = await sendInvite(parsed.data);
+    if (result.ok) revalidatePath("/settings/staff");
+    return result;
+  } catch (e) {
+    return fromError(e);
+  }
+}
 
-    const admin = createAdminClient();
-    const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(v.email, {
-      redirectTo: `${env().APP_URL}/auth/confirm?next=/set-password`,
-      data: { full_name: v.full_name },
-    });
-    if (inviteError || !invited.user) {
-      return { ok: false, message: inviteError?.message ?? "Could not send the invite." };
-    }
-
+export async function decideAccessRequest(id: string, _: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const session = await assertPermission("staff.manage");
     const supabase = await createClient();
-    const { error } = await supabase.rpc("save_staff", {
-      p_staff_id: null,
-      p_user_id: invited.user.id,
-      p_full_name: v.full_name,
-      p_email: v.email,
-      p_phone: v.phone,
-      p_title: v.title,
-      p_registration_number: v.registration_number,
-      p_roles: v.roles,
-      p_specialties: v.specialties,
-    });
-    if (error) {
-      await admin.auth.admin.deleteUser(invited.user.id);
-      return fromError(error);
+    const { data: req } = await supabase.from("access_requests").select("*").eq("id", id).eq("status", "pending").maybeSingle();
+    if (!req) return { ok: false, message: "This request was already handled." };
+    const decision = formData.get("decision");
+    if (decision === "approve") {
+      const parsed = inviteSchema.safeParse({
+        full_name: req.full_name,
+        email: req.email,
+        phone: req.phone ?? undefined,
+        roles: formData.getAll("roles"),
+        specialties: formData.getAll("specialties"),
+      });
+      if (!parsed.success) return fromZod(parsed.error);
+      const result = await sendInvite(parsed.data);
+      if (!result.ok) return result;
     }
+    await supabase
+      .from("access_requests")
+      .update({ status: decision === "approve" ? "approved" : "declined", decided_by: session.staffId, decided_at: new Date().toISOString() })
+      .eq("id", id);
     revalidatePath("/settings/staff");
-    return { ok: true, message: `Invite sent to ${v.email}.` };
+    return { ok: true, message: decision === "approve" ? `Invite sent to ${req.email}.` : "Request declined." };
   } catch (e) {
     return fromError(e);
   }

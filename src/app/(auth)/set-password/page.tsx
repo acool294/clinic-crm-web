@@ -10,7 +10,7 @@ export default async function SetPasswordPage() {
   if (!data?.claims) redirect("/login");
   return (
     <>
-      <h1 className="mb-6 text-xl font-semibold">Choose a password</h1>
+      <h1 className="mb-6 text-2xl font-semibold">Choose a password</h1>
       <SetPasswordForm />
     </>
   );

@@ -18,7 +18,7 @@ export default async function MfaPage({ searchParams }: PageProps<"/mfa">) {
 
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold">Two-step sign-in</h1>
+      <h1 className="mb-1 text-2xl font-semibold">Two-step sign-in</h1>
       <p className="mb-6 text-sm text-muted">
         {verified ? "Enter the code from your authenticator app." : "Set up your authenticator app to continue."}
       </p>
