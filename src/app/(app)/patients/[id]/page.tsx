@@ -11,6 +11,7 @@ import { age, formatDate, formatDateTime, money, SEX_LABELS } from "@/lib/format
 import { createClient } from "@/lib/supabase/server";
 import { archiveDocument } from "@/modules/documents/actions";
 import { CATEGORY_LABELS, UploadForm } from "@/modules/documents/upload-form";
+import { recordPatientVitals, startWalkInVisit } from "@/modules/consultation/actions";
 import { addAllergy, addCondition, archivePatient, linkFamily, removeAllergy, resolveCondition } from "@/modules/patients/actions";
 import { PatientPicker } from "@/modules/patients/patient-picker";
 
@@ -105,6 +106,9 @@ export default async function PatientPage({ params, searchParams }: PageProps<"/
         </div>
         <div className="flex flex-wrap gap-2">
           {can(session, "appointments.write") && <ButtonLink href={`/calendar/new?patient=${p.id}`}>Book appointment</ButtonLink>}
+          {can(session, "clinical.write") && session.roles.includes("doctor") && (
+            <ActionButton action={startWalkInVisit.bind(null, p.id, null)} confirm="Start a visit now without an appointment?">Start visit</ActionButton>
+          )}
           {can(session, "billing.write") && <ButtonLink href={`/billing/invoices/new?patient=${p.id}`} variant="secondary">New invoice</ButtonLink>}
           {write && <ButtonLink href={`/patients/${p.id}/edit`} variant="secondary">Edit</ButtonLink>}
           {can(session, "patients.merge") && <ButtonLink href={`/patients/${p.id}/merge`} variant="ghost">Merge duplicate</ButtonLink>}
@@ -145,7 +149,23 @@ export default async function PatientPage({ params, searchParams }: PageProps<"/
             ))}
           </nav>
           {tab === "timeline" && <Timeline patientId={id} />}
-          {tab === "vitals" && <VitalsTab patientId={id} />}
+          {tab === "vitals" && (
+            <>
+              {can(session, "vitals.write") && (
+                <Card title="Record vitals (triage)" className="mb-4">
+                  <ActionForm action={recordPatientVitals.bind(null, id)} resetOnSuccess>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {[["bp_systolic", "BP sys"], ["bp_diastolic", "BP dia"], ["pulse_bpm", "Pulse"], ["temperature_c", "Temp °C"], ["spo2", "SpO₂ %"], ["weight_kg", "Weight kg"], ["height_cm", "Height cm"], ["head_circumference_cm", "Head circ. cm"], ["respiratory_rate", "Resp. rate"], ["blood_glucose_mgdl", "Sugar mg/dL"]].map(([n, l]) => (
+                        <label key={n} className="flex flex-col gap-1 text-xs">{l}<Input name={n} type="number" step="any" /></label>
+                      ))}
+                    </div>
+                    <div><SubmitButton size="sm" variant="secondary">Record</SubmitButton></div>
+                  </ActionForm>
+                </Card>
+              )}
+              <VitalsTab patientId={id} />
+            </>
+          )}
           {tab === "prescriptions" && <PrescriptionsTab patientId={id} />}
           {tab === "documents" && <DocumentsTab patientId={id} canWrite={can(session, "documents.write")} />}
           {tab === "billing" && <BillingTab patientId={id} />}
