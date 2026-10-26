@@ -1,5 +1,6 @@
+import { unstable_rethrow } from "next/navigation";
 import type { z } from "zod";
-import { ForbiddenError } from "@/lib/auth/session";
+import { ForbiddenError } from "@/lib/auth/errors";
 
 export interface ActionState {
   ok: boolean;
@@ -52,6 +53,8 @@ export function fromZod(error: z.ZodError): ActionState {
 }
 
 export function fromError(error: unknown): ActionState {
+  // let redirect() and notFound() through when they are thrown inside a try block
+  unstable_rethrow(error);
   if (error instanceof ForbiddenError) return { ok: false, message: "You do not have permission to do this." };
   if (error && typeof error === "object" && "message" in error) return { ok: false, message: dbErrorMessage(error as DbError) };
   return { ok: false, message: "Something went wrong. Try again." };

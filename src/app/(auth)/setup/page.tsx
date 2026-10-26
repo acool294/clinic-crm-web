@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { SetupForm } from "@/modules/auth/forms";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Set up the clinic" };
 
 export default async function SetupPage() {
+  await connection();
   const { data: setUp } = await createAdminClient().rpc("clinic_is_set_up");
   if (setUp) redirect("/login");
   return (

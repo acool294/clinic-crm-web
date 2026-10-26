@@ -2,7 +2,10 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ForbiddenError } from "./errors";
 import { isPermission, type Permission, type Role } from "./permissions";
+
+export { ForbiddenError };
 
 export interface Session {
   userId: string;
@@ -16,12 +19,6 @@ export interface Session {
   needsMfa: boolean;
 }
 
-export class ForbiddenError extends Error {
-  constructor(public permission: Permission) {
-    super(`You do not have permission to do this (${permission}).`);
-    this.name = "ForbiddenError";
-  }
-}
 
 /**
  * The signed-in staff member, read once per request. Checks the JWT with
