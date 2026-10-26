@@ -71,3 +71,12 @@ export function trimester(weeks: number): 1 | 2 | 3 {
 export function vaccineDueDate(dob: string, dueAgeDays: number): string {
   return new Date(Date.parse(`${dob}T00:00:00Z`) + dueAgeDays * DAY).toISOString().slice(0, 10);
 }
+
+// ---------------------------------------------------------------------------
+// Visits
+// ---------------------------------------------------------------------------
+
+/** Same rule as app.encounter_locked in the database: signed, or older than 24 hours. */
+export function encounterLocked(signedAt: string | null, createdAt: string, now: Date = new Date()): boolean {
+  return !!signedAt || now.getTime() - new Date(createdAt).getTime() > 24 * 3600_000;
+}

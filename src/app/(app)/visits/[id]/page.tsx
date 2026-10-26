@@ -9,7 +9,7 @@ import { Alert, Badge, Card, Table } from "@/components/ui/layout";
 import { can, requirePermission } from "@/lib/auth/session";
 import { age, formatDate, formatDateTime, SEX_LABELS, todayInClinic } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { gestationalAge, vaccineDueDate } from "@/modules/consultation/clinical-math";
+import { encounterLocked, gestationalAge, vaccineDueDate } from "@/modules/consultation/clinical-math";
 import { addNote, addReferral, orderLabs, recordVaccination, recordVitals, removeDiagnosis, signEncounter } from "@/modules/consultation/actions";
 import { BUILT_IN_PANELS, isBuiltInPanel, panelLabel } from "@/modules/consultation/panels";
 import type { RxItem } from "@/modules/consultation/schemas";
@@ -65,7 +65,7 @@ export default async function VisitPage({ params, searchParams }: PageProps<"/vi
   const p = enc.patient;
   await supabase.rpc("log_event", { p_action: "view", p_entity: "encounters", p_entity_id: id, p_patient_id: p.id });
 
-  const locked = !!enc.signed_at || Date.now() - new Date(enc.created_at).getTime() > 24 * 3600_000;
+  const locked = encounterLocked(enc.signed_at, enc.created_at);
   const write = can(session, "clinical.write") && !locked;
   const today = todayInClinic();
 

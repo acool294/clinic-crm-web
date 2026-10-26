@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
-    "gen:types": "node --experimental-strip-types scripts/gen-types.ts"
+    "gen:types": "node --experimental-strip-types scripts/gen-types.ts",
+    "seed": "node --experimental-strip-types scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

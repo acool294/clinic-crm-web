@@ -41,10 +41,7 @@ export function PrescriptionBuilder({
   }, [query]);
 
   useEffect(() => {
-    if (!items.length) {
-      setWarnings([]);
-      return;
-    }
+    if (!items.length) return;
     const t = setTimeout(async () => setWarnings(await checkPrescription(encounterId, items)), 400);
     return () => clearTimeout(t);
   }, [items, encounterId]);
@@ -80,7 +77,8 @@ export function PrescriptionBuilder({
     setMessage(null);
   }
 
-  const allergy = warnings.filter((w) => w.warning.startsWith("Patient is allergic"));
+  const shownWarnings = items.length ? warnings : [];
+  const allergy = shownWarnings.filter((w) => w.warning.startsWith("Patient is allergic"));
 
   function save() {
     start(async () => {
@@ -174,9 +172,9 @@ export function PrescriptionBuilder({
         </div>
       )}
 
-      {warnings.length > 0 && (
+      {shownWarnings.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {warnings.map((w, i) => (
+          {shownWarnings.map((w, i) => (
             <li key={i} className={`rounded-md px-3 py-1.5 text-sm ${w.warning.startsWith("Patient is allergic") ? "bg-danger-soft text-danger" : "bg-warn-soft text-warn"}`}>
               <span className="font-medium">{w.drug}:</span> {w.warning}
             </li>

@@ -30,16 +30,14 @@ export function BookingForm({
 }) {
   const [specialty, setSpecialty] = useState("");
   const shown = useMemo(() => (specialty ? doctors.filter((d) => d.specialties.includes(specialty)) : doctors), [doctors, specialty]);
-  const [doctor, setDoctor] = useState(shown[0]?.id ?? "");
+  const [picked, setDoctor] = useState(shown[0]?.id ?? "");
+  // a department change can hide the picked doctor; fall back to the first one shown
+  const doctor = shown.some((d) => d.id === picked) ? picked : (shown[0]?.id ?? "");
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(defaultSlot);
   const [slots, setSlots] = useState<{ start: string; minutes: number; free: boolean }[]>([]);
   const [loading, start] = useTransition();
-
-  useEffect(() => {
-    if (!shown.some((d) => d.id === doctor)) setDoctor(shown[0]?.id ?? "");
-  }, [shown, doctor]);
 
   useEffect(() => {
     if (!doctor || !date) return;
